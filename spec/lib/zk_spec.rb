@@ -103,11 +103,11 @@ class RestClientResponseMock
   end
 end
 
-describe Druid::ZooHandler do
+describe Druid::ZK do
   it 'reports services and data sources correctly' do
     calls = []
     RestClient::Request.stub(:execute) do |opts|
-      uri_match = opts[:url].match /^http:\/\/(.+)_address:(.+)\/druid\/v2\/datasources\/$/
+      uri_match = opts[:url].match(/^http:\/\/(.+)_address:(.+)\/druid\/v2\/datasources\/$/)
 
       host = uri_match[1]
       port = uri_match[2].to_i
@@ -126,7 +126,7 @@ describe Druid::ZooHandler do
       end
     end
 
-    zk = Druid::ZooHandler.new 'test-uri', :discovery_path => '/disco'
+    zk = Druid::ZK.new 'test-uri', :discovery_path => '/disco'
 
     calls.should == [
       ['b1', 80],

@@ -42,7 +42,7 @@ module Druid
     end
 
     def zookeeper_caching_management!(zookeeper_uri, opts)
-      @zk = ZooHandler.new(zookeeper_uri, opts)
+      @zk = ZK.new(zookeeper_uri, opts)
 
       unless opts[:zk_keepalive]
         @cached_data_sources = @zk.data_sources unless @zk.nil?
