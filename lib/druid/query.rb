@@ -32,7 +32,7 @@ module Druid
       @properties[:queryType] = type
       self
     end
-    
+
     def get_query_type()
       @properties[:queryType] || :groupBy
     end
@@ -61,14 +61,14 @@ module Druid
       @properties[:threshold] = threshold
       self
     end
-    
+
     def time_series(*aggregations)
       query_type(:timeseries)
       #@properties[:aggregations] = aggregations.flatten
       self
     end
 
-    [:long_sum, :double_sum, :count].each do |method_name|
+    [:long_sum, :double_sum, :count, :hyper_unique].each do |method_name|
       agg_type = method_name.to_s.split('_')
       agg_type[1].capitalize! if agg_type.length > 1
       agg_type = agg_type.join
@@ -170,14 +170,14 @@ module Druid
       @properties.to_json
     end
 
-   def limit_spec(limit, columns)
+    def limit_spec(limit, columns)
       @properties[:limitSpec] = {
         :type => :default,
         :limit => limit,
         :columns => order_by_column_spec(columns)
       }
       self
-    end 
+    end
 
     private
 
