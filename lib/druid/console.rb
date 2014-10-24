@@ -29,7 +29,7 @@ Ripl::Shell.class_eval do
   def format_result(result)
     if result.is_a?(Druid::Query)
       start = Time.now.to_f
-      puts format_query_result(result.send, result)
+      puts format_query_result(result.source.send(result), result)
       puts "Response Time: #{(Time.now.to_f - start).round(3)}s"
     else
       ap(result)
@@ -49,8 +49,6 @@ module Druid
 
     def client
       @client ||= Druid::Client.new(@uri, @options)
-      @source ||= @client.data_sources[0]
-      @client
     end
 
     def source
@@ -66,7 +64,7 @@ module Druid
     end
 
     def query
-      client.query(@source)
+      source.query
     end
 
     def_delegators :query, :group_by, :sum, :long_sum, :double_sum, :count, :hyper_unique, :postagg, :interval, :granularity, :filter, :time_series, :topn

@@ -29,7 +29,7 @@ end
 
 instance_eval(driplrc)
 
-unless @zk_uri || (@options && @options[:static_setup])
+unless @zk_uri
   puts "Your .driplrc is incomplete, please fix"
   exit 1
 end

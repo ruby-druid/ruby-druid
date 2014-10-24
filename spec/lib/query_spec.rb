@@ -3,115 +3,110 @@ require "spec_helper"
 describe Druid::Query do
 
   before :each do
-    @query = Druid::Query.new('test')
-  end
-
-  it 'takes a datasource in the constructor' do
-    query = Druid::Query.new('test')
-    JSON.parse(query.to_json)['dataSource'].should == 'test'
+    @query = Druid::Query.new
   end
 
   it 'takes a query type' do
     @query.query_type('query_type')
-    JSON.parse(@query.to_json)['queryType'].should == 'query_type'
+    expect(JSON.parse(@query.to_json)['queryType']).to eq('query_type')
   end
 
   it 'sets query type by group_by' do
     @query.group_by()
-    JSON.parse(@query.to_json)['queryType'].should == 'groupBy'
+    expect(JSON.parse(@query.to_json)['queryType']).to eq('groupBy')
   end
-  
+
   it 'sets query type to timeseries' do
     @query.time_series()
-    JSON.parse(@query.to_json)['queryType'].should == 'timeseries'
+    expect(JSON.parse(@query.to_json)['queryType']).to eq('timeseries')
   end
 
   it 'takes dimensions from group_by method' do
     @query.group_by(:a, :b, :c)
-    JSON.parse(@query.to_json)['dimensions'].should == ['a', 'b', 'c']
+    expect(JSON.parse(@query.to_json)['dimensions']).to eq(['a', 'b', 'c'])
   end
 
   it 'takes dimension, metric and threshold from topn method' do
     @query.topn(:a, :b, 25)
     result = JSON.parse(@query.to_json)
-    result['dimension'].should == 'a'
-    result['metric'].should == 'b'
-    result['threshold'].should == 25
+    expect(result['dimension']).to eq('a')
+    expect(result['metric']).to eq('b')
+    expect(result['threshold']).to eq(25)
   end
 
   it 'build a post aggregation with a constant right' do
     @query.postagg{(a + 1).as ctr }
 
-    JSON.parse(@query.to_json)['postAggregations'].should == [{"type"=>"arithmetic",
+    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
       "fn"=>"+",
       "fields"=>
       [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
        {"type"=>"constant", "value"=>1}],
-      "name"=>"ctr"}]
+      "name"=>"ctr"}])
   end
 
   it 'build a + post aggregation' do
     @query.postagg{(a + b).as ctr }
-    JSON.parse(@query.to_json)['postAggregations'].should == [{"type"=>"arithmetic",
+    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
       "fn"=>"+",
       "fields"=>
       [{"type"=>"fieldAccess","name"=>"a", "fieldName"=>"a"},
       {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-      "name"=>"ctr"}]
+      "name"=>"ctr"}])
   end
 
   it 'build a - post aggregation' do
     @query.postagg{(a - b).as ctr }
-    JSON.parse(@query.to_json)['postAggregations'].should == [{"type"=>"arithmetic",
+    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
       "fn"=>"-",
       "fields"=>
       [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
       {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-      "name"=>"ctr"}]
+      "name"=>"ctr"}])
   end
 
   it 'build a * post aggregation' do
     @query.postagg{(a * b).as ctr }
-    JSON.parse(@query.to_json)['postAggregations'].should == [{"type"=>"arithmetic",
+    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
       "fn"=>"*",
       "fields"=>
       [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
       {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-      "name"=>"ctr"}]
+      "name"=>"ctr"}])
   end
 
   it 'build a / post aggregation' do
     @query.postagg{(a / b).as ctr }
-    JSON.parse(@query.to_json)['postAggregations'].should == [{"type"=>"arithmetic",
+    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
       "fn"=>"/",
       "fields"=>
       [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
       {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-    "name"=>"ctr"}]
+    "name"=>"ctr"}])
   end
 
   it 'build a complex post aggregation' do
     @query.postagg{((a / b) * 1000).as ctr }
-    JSON.parse(@query.to_json)['postAggregations'].should == [{"type"=>"arithmetic",
+    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
       "fn"=>"*",
       "fields"=>
       [{"type"=>"arithmetic", "fn"=>"/", "fields"=>
         [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
          {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}]},
       {"type"=>"constant", "value"=>1000}],
-    "name"=>"ctr"}]
+    "name"=>"ctr"}])
   end
 
   it 'adds fields required by the postagg operation to longsum' do
     @query.postagg{ (a/b).as c }
-    JSON.parse(@query.to_json)['aggregations'].should == [{"type"=>"longSum", "name"=>"a", "fieldName"=>"a"},
-                                                          {"type"=>"longSum", "name"=>"b", "fieldName"=>"b"}]
+    expect(JSON.parse(@query.to_json)['aggregations']).to eq([{"type"=>"longSum", "name"=>"a", "fieldName"=>"a"},
+                                                          {"type"=>"longSum", "name"=>"b", "fieldName"=>"b"}])
   end
 
   it 'chains aggregations' do
     @query.postagg{(a / b).as ctr }.postagg{(b / a).as rtc }
 
-    JSON.parse(@query.to_json)['postAggregations'].should == [{"type"=>"arithmetic",
+    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
       "fn"=>"/",
       "fields"=>
       [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
@@ -123,16 +118,16 @@ describe Druid::Query do
       [{"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"},
       {"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"}],
     "name"=>"rtc"}
-    ]
+    ])
   end
 
   it 'builds aggregations on long_sum' do
     @query.long_sum(:a, :b, :c)
-    JSON.parse(@query.to_json)['aggregations'].should == [
+    expect(JSON.parse(@query.to_json)['aggregations']).to eq([
       { 'type' => 'longSum', 'name' => 'a', 'fieldName' => 'a'},
       { 'type' => 'longSum', 'name' => 'b', 'fieldName' => 'b'},
       { 'type' => 'longSum', 'name' => 'c', 'fieldName' => 'c'}
-    ]
+    ])
   end
 
 
@@ -140,7 +135,7 @@ describe Druid::Query do
     @query.long_sum(:a, :b, :c)
     @query.double_sum(:x,:y)
     @query.long_sum(:d, :e, :f)
-    JSON.parse(@query.to_json)['aggregations'].sort{|x,y| x['name'] <=> y['name']}.should == [
+    expect(JSON.parse(@query.to_json)['aggregations'].sort{|x,y| x['name'] <=> y['name']}).to eq([
       { 'type' => 'longSum', 'name' => 'a', 'fieldName' => 'a'},
       { 'type' => 'longSum', 'name' => 'b', 'fieldName' => 'b'},
       { 'type' => 'longSum', 'name' => 'c', 'fieldName' => 'c'},
@@ -149,21 +144,21 @@ describe Druid::Query do
       { 'type' => 'longSum', 'name' => 'f', 'fieldName' => 'f'},
       { 'type' => 'doubleSum', 'name' => 'x', 'fieldName' => 'x'},
       { 'type' => 'doubleSum', 'name' => 'y', 'fieldName' => 'y'}
-    ]
+    ])
   end
 
   it 'removes duplicate aggregation fields' do
     @query.long_sum(:a, :b)
     @query.long_sum(:b)
 
-    JSON.parse(@query.to_json)['aggregations'].should == [
+    expect(JSON.parse(@query.to_json)['aggregations']).to eq([
       { 'type' => 'longSum', 'name' => 'a', 'fieldName' => 'a'},
       { 'type' => 'longSum', 'name' => 'b', 'fieldName' => 'b'},
-    ]
+    ])
   end
 
   it 'must be chainable' do
-    q = [Druid::Query.new('test')]
+    q = [Druid::Query.new]
     q.push q[-1].query_type('a')
     q.push q[-1].data_source('b')
     q.push q[-1].group_by('c')
@@ -174,42 +169,42 @@ describe Druid::Query do
     q.push q[-1].granularity(:day)
 
     q.each do |instance|
-      instance.should == q[0]
+      expect(instance).to eq(q[0])
     end
   end
 
   it 'parses intervals from strings' do
     @query.interval('2013-01-26T0', '2020-01-26T00:15')
-    JSON.parse(@query.to_json)['intervals'].should == ['2013-01-26T00:00:00+00:00/2020-01-26T00:15:00+00:00']
+    expect(JSON.parse(@query.to_json)['intervals']).to eq(['2013-01-26T00:00:00+00:00/2020-01-26T00:15:00+00:00'])
   end
 
   it 'takes multiple intervals' do
     @query.intervals([['2013-01-26T0', '2020-01-26T00:15'],['2013-04-23T0', '2013-04-23T15:00']])
-    JSON.parse(@query.to_json)['intervals'].should == ["2013-01-26T00:00:00+00:00/2020-01-26T00:15:00+00:00", "2013-04-23T00:00:00+00:00/2013-04-23T15:00:00+00:00"]
+    expect(JSON.parse(@query.to_json)['intervals']).to eq(["2013-01-26T00:00:00+00:00/2020-01-26T00:15:00+00:00", "2013-04-23T00:00:00+00:00/2013-04-23T15:00:00+00:00"])
   end
 
   it 'accepts Time objects for intervals' do
     @query.interval(a = Time.now, b = Time.now + 1)
-    JSON.parse(@query.to_json)['intervals'].should == ["#{a.iso8601}/#{b.iso8601}"]
+    expect(JSON.parse(@query.to_json)['intervals']).to eq(["#{a.iso8601}/#{b.iso8601}"])
   end
 
   it 'takes a granularity from string' do
     @query.granularity('all')
-    JSON.parse(@query.to_json)['granularity'].should == 'all'
+    expect(JSON.parse(@query.to_json)['granularity']).to eq('all')
   end
 
   it 'should take a period' do
     @query.granularity(:day, 'CEST')
-    @query.properties[:granularity].should == {
+    expect(@query.properties[:granularity]).to eq({
       :type => "period",
       :period => "P1D",
       :timeZone => "Europe/Berlin"
-    }
+    })
   end
 
   it 'creates a in_circ filter' do
     @query.filter{a.in_circ [[52.0,13.0], 10.0]}
-    JSON.parse(@query.to_json)['filter'].should == {
+    expect(JSON.parse(@query.to_json)['filter']).to eq({
     "type" => "spatial",
     "dimension" => "a",
     "bound" => {
@@ -217,12 +212,12 @@ describe Druid::Query do
         "coords" => [52.0, 13.0],
         "radius" =>  10.0
       }
-    }
+    })
   end
 
   it 'creates a in_rec filter' do
     @query.filter{a.in_rec [[10.0, 20.0], [30.0, 40.0]] }
-    JSON.parse(@query.to_json)['filter'].should == {
+    expect(JSON.parse(@query.to_json)['filter']).to eq({
     "type" => "spatial",
     "dimension" => "a",
     "bound" => {
@@ -230,131 +225,131 @@ describe Druid::Query do
         "minCoords" => [10.0, 20.0],
         "maxCoords" => [30.0, 40.0]
       }
-    }
+    })
   end
 
   it 'creates an equals filter' do
     @query.filter{a.eq 1}
-    JSON.parse(@query.to_json)['filter'].should == {"type"=>"selector", "dimension"=>"a", "value"=>1}
+    expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"selector", "dimension"=>"a", "value"=>1})
   end
 
   it 'creates an equals filter with ==' do
     @query.filter{a == 1}
-    JSON.parse(@query.to_json)['filter'].should == {"type"=>"selector", "dimension"=>"a", "value"=>1}
+    expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"selector", "dimension"=>"a", "value"=>1})
   end
 
 
   it 'creates a not filter' do
     @query.filter{!a.eq 1}
-    JSON.parse(@query.to_json)['filter'].should ==  {"field" =>
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
       {"type"=>"selector", "dimension"=>"a", "value"=>1},
-    "type" => "not"}
+    "type" => "not"})
   end
 
   it 'creates a not filter with neq' do
     @query.filter{a.neq 1}
-    JSON.parse(@query.to_json)['filter'].should ==  {"field" =>
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
       {"type"=>"selector", "dimension"=>"a", "value"=>1},
-    "type" => "not"}
+    "type" => "not"})
   end
 
   it 'creates a not filter with !=' do
     @query.filter{a != 1}
-    JSON.parse(@query.to_json)['filter'].should ==  {"field" =>
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
       {"type"=>"selector", "dimension"=>"a", "value"=>1},
-    "type" => "not"}
+    "type" => "not"})
   end
 
 
   it 'creates an and filter' do
     @query.filter{a.neq(1) & b.eq(2) & c.eq('foo')}
-    JSON.parse(@query.to_json)['filter'].should ==  {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
       {"type"=>"not", "field"=>{"type"=>"selector", "dimension"=>"a", "value"=>1}},
       {"type"=>"selector", "dimension"=>"b", "value"=>2},
       {"type"=>"selector", "dimension"=>"c", "value"=>"foo"}
     ],
-  "type" => "and"}
+  "type" => "and"})
 end
 
   it 'creates an or filter' do
     @query.filter{a.neq(1) | b.eq(2) | c.eq('foo')}
-    JSON.parse(@query.to_json)['filter'].should ==  {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
       {"type"=>"not", "field"=> {"type"=>"selector", "dimension"=>"a", "value"=>1}},
       {"type"=>"selector", "dimension"=>"b", "value"=>2},
       {"type"=>"selector", "dimension"=>"c", "value"=>"foo"}
     ],
-  "type" => "or"}
+  "type" => "or"})
   end
 
   it 'chains filters' do
     @query.filter{a.eq(1)}.filter{b.eq(2)}
-    JSON.parse(@query.to_json)['filter'].should ==  {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
       {"type"=>"selector", "dimension"=>"a", "value"=>1},
       {"type"=>"selector", "dimension"=>"b", "value"=>2}
     ],
-    "type" => "and"}
+    "type" => "and"})
   end
 
   it 'creates filter from hash' do
     @query.filter a:1, b:2
-    JSON.parse(@query.to_json)['filter'].should ==  {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
       {"type"=>"selector", "dimension"=>"a", "value"=>1},
       {"type"=>"selector", "dimension"=>"b", "value"=>2}
     ],
-    "type" => "and"}
+    "type" => "and"})
 
   end
 
   it 'creates an in statement with or filter' do
     @query.filter{a.in [1,2,3]}
-    JSON.parse(@query.to_json)['filter'].should ==  {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
       {"type"=>"selector", "dimension"=>"a", "value"=>1},
       {"type"=>"selector", "dimension"=>"a", "value"=>2},
       {"type"=>"selector", "dimension"=>"a", "value"=>3}
     ],
-    "type" => "or"}
+    "type" => "or"})
   end
 
   it 'creates a nin statement with and filter' do
     @query.filter{a.nin [1,2,3]}
-    JSON.parse(@query.to_json)['filter'].should ==  {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
       {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>1},"type" => "not"},
       {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>2},"type" => "not"},
       {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>3},"type" => "not"}
     ],
-    "type" => "and"}
+    "type" => "and"})
   end
 
   it 'creates a javascript with > filter' do
     @query.filter{a > 100}
-    JSON.parse(@query.to_json)['filter'].should == {
+    expect(JSON.parse(@query.to_json)['filter']).to eq({
       "type" => "javascript",
       "dimension" => "a",
       "function" => "function(a) { return(a > 100); }"
-    }
+    })
   end
 
   it 'creates a mixed javascript filter' do
     @query.filter{(a >= 128) & (a != 256)}
-    JSON.parse(@query.to_json)['filter'].should == {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq({"fields" => [
       {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a >= 128); }"},
       {"field" => {"type" => "selector", "dimension" => "a", "value" => 256}, "type" => "not"}
     ],
-    "type" => "and"}
+    "type" => "and"})
   end
 
   it 'creates a complex javascript filter' do
     @query.filter{(a >= 4) & (a <= '128')}
-    JSON.parse(@query.to_json)['filter'].should == {"fields" => [
+    expect(JSON.parse(@query.to_json)['filter']).to eq({"fields" => [
       {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a >= 4); }"},
       {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a <= '128'); }"}
     ],
-    "type" => "and"}
+    "type" => "and"})
   end
 
   it 'can chain two in statements' do
     @query.filter{a.in([1,2,3]) & b.in([1,2,3])}
-    JSON.parse(@query.to_json)['filter'].should == {"type"=>"and", "fields"=>[
+    expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"and", "fields"=>[
       {"type"=>"or", "fields"=>[
         {"type"=>"selector", "dimension"=>"a", "value"=>1},
         {"type"=>"selector", "dimension"=>"a", "value"=>2},
@@ -365,14 +360,14 @@ end
         {"type"=>"selector", "dimension"=>"b", "value"=>2},
         {"type"=>"selector", "dimension"=>"b", "value"=>3}
       ]}
-    ]}
+    ]})
   end
 
   it 'creates a greater than having clause' do
     @query.having{a > 100}
-    JSON.parse(@query.to_json)['having'].should == {
+    expect(JSON.parse(@query.to_json)['having']).to eq({
       "type"=>"greaterThan", "aggregation"=>"a", "value"=>100
-    }
+    })
   end
 
   it 'does not accept in with empty array' do
@@ -392,42 +387,42 @@ end
   end
 
   it 'should query regexp using .regexp(string)' do
-    JSON.parse(@query.filter{a.regexp('[1-9].*')}.to_json)['filter'].should == {
+    expect(JSON.parse(@query.filter{a.regexp('[1-9].*')}.to_json)['filter']).to eq({
       "dimension"=>"a",
       "type"=>"regex",
       "pattern"=>"[1-9].*"
-    }
+    })
   end
 
   it 'should query regexp using .eq(regexp)' do
-    JSON.parse(@query.filter{a.in(/abc.*/)}.to_json)['filter'].should == {
+    expect(JSON.parse(@query.filter{a.in(/abc.*/)}.to_json)['filter']).to eq({
       "dimension"=>"a",
       "type"=>"regex",
       "pattern"=>"abc.*"
-    }
+    })
   end
 
   it 'should query regexp using .in([regexp])' do
-    JSON.parse(@query.filter{ a.in(['b', /[a-z].*/, 'c']) }.to_json)['filter'].should == {
+    expect(JSON.parse(@query.filter{ a.in(['b', /[a-z].*/, 'c']) }.to_json)['filter']).to eq({
       "type"=>"or",
       "fields"=>[
         {"dimension"=>"a", "type"=>"selector", "value"=>"b"},
         {"dimension"=>"a", "type"=>"regex", "pattern"=>"[a-z].*"},
         {"dimension"=>"a", "type"=>"selector", "value"=>"c"}
       ]
-    }
+    })
   end
 
   it 'takes type, limit and columns from limit method' do
     @query.limit_spec(10, :a => 'ASCENDING', :b => 'DESCENDING')
     result = JSON.parse(@query.to_json)
-    result['limitSpec'].should == {
+    expect(result['limitSpec']).to eq({
       'type' => 'default',
       'limit' => 10,
       'columns' => [
         { 'dimension' => 'a', 'direction' => 'ASCENDING'},
         { 'dimension' => 'b', 'direction' => 'DESCENDING'}
       ]
-    }
+    })
   end
 end

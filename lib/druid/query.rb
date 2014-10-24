@@ -8,15 +8,12 @@ module Druid
   class Query
 
     attr_reader :properties
+    attr_reader :source # needed for console magic
 
-    def initialize(source, client = nil)
+    def initialize(source = nil)
+      @source = source
       @properties = {}
-      @client = client
-
-      # set some defaults
-      data_source(source)
       granularity(:all)
-
       interval(today)
     end
 
@@ -24,16 +21,12 @@ module Druid
       Time.now.to_date.to_time
     end
 
-    def send
-      @client.send(self)
-    end
-
     def query_type(type)
       @properties[:queryType] = type
       self
     end
 
-    def get_query_type()
+    def get_query_type
       @properties[:queryType] || :groupBy
     end
 
@@ -42,10 +35,6 @@ module Druid
       @properties[:dataSource] = source.last
       @service = source.first
       self
-    end
-
-    def source
-      "#{@service}/#{@properties[:dataSource]}"
     end
 
     def group_by(*dimensions)

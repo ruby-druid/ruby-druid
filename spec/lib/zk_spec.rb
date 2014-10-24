@@ -9,8 +9,8 @@ module ZK
     include RSpec::Matchers
 
     def initialize(uri, opts)
-      uri.should == 'test-uri'
-      opts.should == { :chroot => :check }
+      expect(uri).to eq('test-uri')
+      expect(opts).to eq({ :chroot => :check })
       @registrations = {}
       @paths = {
         '/disco' => ['a', 'b'],
@@ -21,8 +21,8 @@ module ZK
     end
 
     def register(path, opts, &block)
-      opts.should == { :only => :child }
-      @registrations[path].should == nil
+      expect(opts).to eq({ :only => :child })
+      expect(@registrations[path]).to eq(nil)
 
       zk = self
       block.define_singleton_method :unregister do
@@ -39,7 +39,7 @@ module ZK
     end
 
     def children(path, opts)
-      @registrations[path].should be_a(Proc)
+      expect(@registrations[path]).to be_a(Proc)
 
       value = @paths[path]
       throw "no mock code for #{path}" unless value
@@ -106,7 +106,7 @@ end
 describe Druid::ZK do
   it 'reports services and data sources correctly' do
     calls = []
-    RestClient::Request.stub(:execute) do |opts|
+    expect(RestClient::Request).to receive(:execute).at_least(:once) do |opts|
       uri_match = opts[:url].match(/^http:\/\/(.+)_address:(.+)\/druid\/v2\/datasources\/$/)
 
       host = uri_match[1]
@@ -128,73 +128,73 @@ describe Druid::ZK do
 
     zk = Druid::ZK.new 'test-uri', :discovery_path => '/disco'
 
-    calls.should == [
+    expect(calls).to eq([
       ['b1', 80],
       ['m1', 81],
       ['b2', 90],
       ['m2', 85]
-    ]
-    zk.services.should == ['a', 'b']
-    zk.data_sources.should == {
+    ])
+    expect(zk.services).to eq(['a', 'b'])
+    expect(zk.data_sources).to eq({
       'a/s1' => 'http://b1_address:80/druid/v2/',
       'a/s2' => 'http://b1_address:80/druid/v2/',
       'b/s3' => 'http://b2_address:90/druid/v2/',
       'b/s4' => 'http://b2_address:90/druid/v2/'
-    }
+    })
 
     calls = []
     mock = zk.instance_variable_get('@zk')
-    mock.unregistrations.should == []
+    expect(mock.unregistrations).to eq([])
 
     # unregister a whole service
     mock.change '/disco', ['a']
-    calls.should == []
-    zk.services.should == ['a']
-    zk.data_sources.should == {
+    expect(calls).to eq([])
+    expect(zk.services).to eq(['a'])
+    expect(zk.data_sources).to eq({
       'a/s1' => 'http://b1_address:80/druid/v2/',
       'a/s2' => 'http://b1_address:80/druid/v2/'
-    }
-    mock.unregistrations.should == ['/disco/b']
+    })
+    expect(mock.unregistrations).to eq(['/disco/b'])
     # register it again
     mock.change '/disco', ['a', 'b']
-    calls.should == [
+    expect(calls).to eq([
       ['b2', 90],
       ['m2', 85]
-    ]
-    zk.services.should == ['a', 'b']
-    zk.data_sources.should == {
+    ])
+    expect(zk.services).to eq(['a', 'b'])
+    expect(zk.data_sources).to eq({
       'a/s1' => 'http://b1_address:80/druid/v2/',
       'a/s2' => 'http://b1_address:80/druid/v2/',
       'b/s3' => 'http://b2_address:90/druid/v2/',
       'b/s4' => 'http://b2_address:90/druid/v2/'
-    }
-    mock.unregistrations.should == []
+    })
+    expect(mock.unregistrations).to eq([])
 
     #register a new broker
     calls = []
     mock.change '/disco/a', ['b1', 'b3']
-    calls.should == [['b3', 83]]
-    zk.services.should == ['a', 'b']
-    zk.data_sources.should == {
+    expect(calls).to eq([['b3', 83]])
+    expect(zk.services).to eq(['a', 'b'])
+    expect(zk.data_sources).to eq({
       "a/s1" => "http://b1_address:80/druid/v2/",
       "a/s2" => "http://b1_address:80/druid/v2/",
       "b/s3" => "http://b2_address:90/druid/v2/",
       "b/s4" => "http://b2_address:90/druid/v2/",
       "a/s5" => "http://b3_address:83/druid/v2/",
       "a/s6" => "http://b3_address:83/druid/v2/"
-    }
-    mock.unregistrations.should == ['/disco/a']
+    })
+    expect(mock.unregistrations).to eq(['/disco/a'])
     # unregister it
     calls = []
     mock.change '/disco/a', ['b1']
-    calls.should == []
-    zk.services.should == ['a', 'b']
-    zk.data_sources.should == {
+    expect(calls).to eq([])
+    expect(zk.services).to eq(['a', 'b'])
+    expect(zk.data_sources).to eq({
       'a/s1' => 'http://b1_address:80/druid/v2/',
       'a/s2' => 'http://b1_address:80/druid/v2/',
       'b/s3' => 'http://b2_address:90/druid/v2/',
       'b/s4' => 'http://b2_address:90/druid/v2/'
-    }
-    mock.unregistrations.should == ['/disco/a']
+    })
+    expect(mock.unregistrations).to eq(['/disco/a'])
   end
 end
