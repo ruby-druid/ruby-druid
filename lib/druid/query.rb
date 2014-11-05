@@ -59,25 +59,53 @@ module Druid
       self
     end
 
-    [:long_sum, :double_sum, :count, :hyper_unique].each do |method_name|
-      agg_type = method_name.to_s.split('_')
-      agg_type[1].capitalize! if agg_type.length > 1
-      agg_type = agg_type.join
-
+    [:long_sum, :double_sum, :count, :min, :max, :hyper_unique].each do |method_name|
       define_method method_name do |*metrics|
         query_type(get_query_type())
-        @properties[:aggregations] = [] if @properties[:aggregations].nil?
-
         metrics.flatten.each do |metric|
-          @properties[:aggregations] << {
-            :type => agg_type,
-            :name => metric.to_s,
-            :fieldName => metric.to_s
-          } unless contains_aggregation?(metric)
+          aggregate(method_name, metric)
         end
 
         self
       end
+    end
+
+    def cardinality(metric, dimensions, by_row = true)
+      aggregate(:cardinality, metric,
+        field_names: dimensions,
+        by_row: by_row
+      )
+    end
+
+    def js_aggregation(metric, columns, functions)
+      aggregate(:javascript, metric,
+        field_names: columns,
+        fn_aggregate: functions[:aggregate],
+        fn_combine: functions[:combine],
+        fn_reset: functions[:reset]
+      )
+    end
+
+    def aggregate(agg_type, metric, options = {})
+      @properties[:aggregations] ||= []
+
+      unless contains_aggregation?(metric)
+        @properties[:aggregations] << build_aggregation(agg_type, metric, options)
+      end
+
+      self
+    end
+
+    def build_aggregation(agg_type, metric, options = {})
+      options = {
+        type: to_druid_notation(agg_type),
+        name: metric.to_s
+      }.merge(
+        Hash[options.map { |k, v| [to_druid_notation(k).to_sym, v] }]
+      )
+
+      options[:fieldName] ||= metric.to_s if !options[:fieldNames] && agg_type != :filtered
+      options
     end
 
     alias_method :sum, :long_sum
@@ -185,6 +213,12 @@ module Druid
 
     private
 
+    def to_druid_notation(string)
+      string.to_s.split('_').
+        each_with_index.map { |v, i| i == 0 ? v : v.capitalize }.
+        join
+    end
+
     def order_by_column_spec(columns)
       columns.map do |dimension, direction|
         {
@@ -205,7 +239,7 @@ module Druid
 
     def contains_aggregation?(metric)
       return false if @properties[:aggregations].nil?
-      @properties[:aggregations].index { |aggregation| aggregation[:fieldName] == metric.to_s }
+      @properties[:aggregations].index { |aggregation| aggregation[:name] == metric.to_s }
     end
   end
 
