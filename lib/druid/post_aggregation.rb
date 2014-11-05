@@ -1,5 +1,7 @@
 module Druid
-  class PostAggregation
+  class PostAggregation < BasicObject
+    include Serializable
+
     def method_missing(name, *args)
       if args.empty?
         PostAggregationField.new(name)
@@ -35,6 +37,7 @@ module Druid
 
   class PostAggregationOperation
     include PostAggregationOperators
+    include Serializable
 
     attr_reader :left, :operator, :right, :name
 
@@ -50,29 +53,20 @@ module Druid
     end
 
     def get_field_names
-      field_names = []
-      field_names << left.get_field_names if left.respond_to?(:get_field_names)
-      field_names << right.get_field_names if right.respond_to?(:get_field_names)
-      field_names
+      field_names = left.get_field_names + right.get_field_names
+      field_names.flatten.compact.uniq
     end
 
-    def to_hash
-      hash = { "type" => "arithmetic", "fn" => @operator, "fields" => [@left.to_hash, @right.to_hash] }
-      hash["name"] = @name if @name
+    def to_h
+      hash = { type: "arithmetic", fn: @operator, fields: [@left.to_h, @right.to_h] }
+      hash[:name] = @name if @name
       hash
-    end
-
-    def to_json(*a)
-      to_hash.to_json(*a)
-    end
-
-    def as_json(*a)
-      to_hash
     end
   end
 
   class PostAggregationField
     include PostAggregationOperators
+    include Serializable
 
     attr_reader :name
 
@@ -81,24 +75,17 @@ module Druid
     end
 
     def get_field_names
-      @name
+      [@name]
     end
 
-    def to_hash
-      { "type" => "fieldAccess", "name" => @name, "fieldName" => @name }
-    end
-
-    def to_json(*a)
-      to_hash.to_json(*a)
-    end
-
-    def as_json(*a)
-      to_hash
+    def to_h
+      { type: "fieldAccess", name: @name, fieldName: @name }
     end
   end
 
   class PostAggregationConstant
     include PostAggregationOperators
+    include Serializable
 
     attr_reader :value
 
@@ -106,16 +93,12 @@ module Druid
       @value = value
     end
 
-    def to_hash
-      { "type" => "constant", "value" => @value }
+    def get_field_names
+      []
     end
 
-    def to_json(*a)
-      to_hash.to_json(*a)
-    end
-
-    def as_json(*a)
-      to_hash
+    def to_h
+      { type: "constant", value: @value }
     end
   end
 
@@ -137,12 +120,12 @@ module Druid
       self
     end
 
-    def to_hash
+    def to_h
       {
-        "type" => "javascript",
-        "name" => @name,
-        "fieldNames" => @field_names,
-        "function" => @function
+        type: "javascript",
+        name: @name,
+        fieldNames: @field_names,
+        function: @function,
       }
     end
 
@@ -151,7 +134,7 @@ module Druid
     def extract_fields(function)
       match = function.match(/function\((.+)\)/)
       raise 'Invalid Javascript function' unless match && match.captures
-      match.captures.first.split(',').map {|field| field.strip }
+      match.captures.first.split(',').map(&:strip)
     end
   end
 end

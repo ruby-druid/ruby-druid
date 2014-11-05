@@ -1,148 +1,28 @@
-require 'druid/serializable'
+require 'time'
+require 'iso8601'
+
+require 'active_support/all'
+
 require 'druid/filter'
 require 'druid/having'
 require 'druid/post_aggregation'
 
-require 'time'
-require 'json'
-
 module Druid
-  class Query
+  class Query < ::Hash
+    include Serializable
 
-    attr_reader :properties
     attr_reader :source # needed for console magic
+
+    def self.new(source = nil)
+      query = self.allocate
+      query.send(:initialize, source)
+      query
+    end
 
     def initialize(source = nil)
       @source = source
-      @properties = {}
       granularity(:all)
-      interval(today)
-    end
-
-    def today
-      Time.now.to_date.to_time
-    end
-
-    def query_type(type)
-      @properties[:queryType] = type
-      self
-    end
-
-    def get_query_type
-      @properties[:queryType] || :groupBy
-    end
-
-    def data_source(source)
-      source = source.split('/')
-      @properties[:dataSource] = source.last
-      @service = source.first
-      self
-    end
-
-    def group_by(*dimensions)
-      query_type(:groupBy)
-      @properties[:dimensions] = dimensions.flatten
-      self
-    end
-
-    def topn(dimension, metric, threshold)
-      query_type(:topN)
-      @properties[:dimension] = dimension
-      @properties[:metric] = metric
-      @properties[:threshold] = threshold
-      self
-    end
-
-    def time_series(*aggregations)
-      query_type(:timeseries)
-      #@properties[:aggregations] = aggregations.flatten
-      self
-    end
-
-    [:long_sum, :double_sum, :count, :min, :max, :hyper_unique].each do |method_name|
-      define_method method_name do |*metrics|
-        query_type(get_query_type())
-        metrics.flatten.each do |metric|
-          aggregate(method_name, metric)
-        end
-
-        self
-      end
-    end
-
-    def cardinality(metric, dimensions, by_row = true)
-      aggregate(:cardinality, metric,
-        field_names: dimensions,
-        by_row: by_row
-      )
-    end
-
-    def js_aggregation(metric, columns, functions)
-      aggregate(:javascript, metric,
-        field_names: columns,
-        fn_aggregate: functions[:aggregate],
-        fn_combine: functions[:combine],
-        fn_reset: functions[:reset]
-      )
-    end
-
-    def aggregate(agg_type, metric, options = {})
-      @properties[:aggregations] ||= []
-
-      unless contains_aggregation?(metric)
-        @properties[:aggregations] << build_aggregation(agg_type, metric, options)
-      end
-
-      self
-    end
-
-    def build_aggregation(agg_type, metric, options = {})
-      options = {
-        type: to_druid_notation(agg_type),
-        name: metric.to_s
-      }.merge(
-        Hash[options.map { |k, v| [to_druid_notation(k).to_sym, v] }]
-      )
-
-      options[:fieldName] ||= metric.to_s if !options[:fieldNames] && agg_type != :filtered
-      options
-    end
-
-    alias_method :sum, :long_sum
-
-    def postagg(type=:long, &block)
-      post_agg = PostAggregation.new.instance_exec(&block)
-      @properties[:postAggregations] ||= []
-      @properties[:postAggregations] << post_agg
-
-      # make sure, the required fields are in the query
-      field_type = (type.to_s + '_sum').to_sym
-      # ugly workaround, because SOMEONE overwrote send
-      sum_method = self.method(field_type)
-      sum_method.call(post_agg.get_field_names)
-
-      self
-    end
-
-    def postagg_double(&block)
-      postagg(:double, &block)
-    end
-
-    def filter(hash = nil, &block)
-      if hash
-        last = nil
-        hash.each do |k,values|
-          filter = FilterDimension.new(k).in(values)
-          last = last ? last.&(filter) : filter
-        end
-        @properties[:filter] = @properties[:filter] ? @properties[:filter].&(last) : last
-      end
-      if block
-        filter = Filter.new.instance_exec(&block)
-        raise "Not a valid filter" unless filter.is_a? FilterParameter
-        @properties[:filter] = @properties[:filter] ? @properties[:filter].&(filter) : filter
-      end
-      self
+      interval(Time.now.utc.beginning_of_day)
     end
 
     def interval(from, to = Time.now)
@@ -150,97 +30,160 @@ module Druid
     end
 
     def intervals(is)
-      @properties[:intervals] = is.map{ |ii| mk_interval(ii[0], ii[1]) }
+      self[:intervals] = is.map do |from, to|
+        from = from.respond_to?(:iso8601) ? from.iso8601 : ISO8601::DateTime.new(from).to_s
+        to = to.respond_to?(:iso8601) ? to.iso8601 : ISO8601::DateTime.new(to).to_s
+        "#{from}/#{to}"
+      end
+      self
+    end
+
+    def granularity(gran, time_zone = "UTC")
+      gran = gran.to_s
+      if %w(all none minute fifteen_minute thirty_minute hour day).include?(gran)
+        self[:granularity] = gran
+      else
+        self[:granularity] = {
+          type: 'period',
+          period: gran,
+          timeZone: time_zone
+        }
+      end
+      self
+    end
+
+    ## query types
+
+    def query_type(type)
+      self[:queryType] = type
+      self
+    end
+
+    def data_source(source)
+      self[:dataSource] = source.split('/').last
+      self
+    end
+
+    def group_by(*dimensions)
+      query_type(:groupBy)
+      self[:dimensions] = dimensions.flatten
+      self
+    end
+
+    def topn(dimension, metric, threshold)
+      query_type(:topN)
+      self[:dimension] = dimension
+      self[:metric] = metric
+      self[:threshold] = threshold
+      self
+    end
+
+    def time_series
+      query_type(:timeseries)
+      self
+    end
+
+    ## aggregations
+
+    [:count, :long_sum, :double_sum, :min, :max, :hyper_unique].each do |method_name|
+      aggregation_type = method_name.to_s.camelize(:lower)
+      define_method method_name do |*metrics|
+        metrics.flatten.compact.each do |metric|
+          aggregate(aggregation_type, metric)
+        end
+        self
+      end
+    end
+
+    alias_method :sum, :long_sum
+
+    def cardinality(metric, dimensions, by_row = false)
+      aggregate(:cardinality, metric,
+        fieldNames: dimensions,
+        byRow: by_row
+      )
+    end
+
+    def js_aggregation(metric, columns, functions)
+      aggregate(:javascript, metric,
+        fieldNames: columns,
+        fnAggregate: functions[:aggregate],
+        fnCombine: functions[:combine],
+        fnReset: functions[:reset]
+      )
+    end
+
+    def aggregate(type, metric, options = {})
+      self[:aggregations] ||= []
+      self[:aggregations] << build_aggregation(type.to_s, metric, options)
+      self
+    end
+
+    def build_aggregation(type, metric, options = {})
+      options[:fieldName] ||= metric.to_s unless %w(cardinality filtered javascript).include?(type.to_s)
+      { type: type.to_s, name: metric.to_s }.merge(options)
+    end
+
+    ## post aggregations
+
+    def postagg(type = :long_sum, &block)
+      post_agg = PostAggregation.new.instance_exec(&block)
+      self[:postAggregations] ||= []
+      self[:postAggregations] << post_agg
+      # make sure, the required fields are in the query
+      self.method(type).call(post_agg.get_field_names)
+      self
+    end
+
+    ## filters
+
+    def filter(hash = nil, &block)
+      filter_dimensions(hash) if hash
+      filter_block(&block) if block
+      self
+    end
+
+    def filter_dimensions(hash)
+      last = nil
+      hash.each do |k, values|
+        filter = FilterDimension.new(k).in(values)
+        last = last ? last.&(filter) : filter
+      end
+      self[:filter] = self[:filter] ? self[:filter].&(last) : last
+    end
+
+    def filter_block(&block)
+      filter = Filter.new.instance_exec(&block)
+      raise "Not a valid filter" unless filter.is_a? FilterParameter
+      self[:filter] = self[:filter] ? self[:filter].&(filter) : filter
+    end
+
+    ## having
+
+    def having(&block)
+      self[:having] = Having.new.instance_exec(&block)
       self
     end
 
     def having(&block)
       having = Having.new.instance_exec(&block)
+      having = self[:having].chain(having) if self[:having]
+      self[:having] = having
+      self
+    end
 
-      if old_having = @properties[:having]
-        if old_having.operator? && old_having.and?
-          new_having = old_having
-        else
-          new_having = HavingOperator.new('and')
-          new_having.add(old_having)
+    ## limit/sort
+
+    def limit(limit, columns)
+      self[:limitSpec] = {
+        type: :default,
+        limit: limit,
+        columns: columns.map do |dimension, direction|
+          { dimension: dimension, direction: direction }
         end
-        new_having.add(having)
-      else
-        new_having = having
-      end
-
-      @properties[:having] = new_having
-      self
-    end
-
-    alias_method :[], :interval
-
-    def granularity(gran, time_zone = nil)
-      gran = gran.to_s
-      case gran
-      when 'none', 'all', 'second', 'minute', 'fifteen_minute', 'thirty_minute', 'hour'
-        @properties[:granularity] = gran
-        return self
-      when 'day'
-        gran = 'P1D'
-      end
-
-      time_zone ||= Time.now.strftime('%Z')
-      # druid doesn't seem to understand 'CEST'
-      # this is a work around
-      time_zone = 'Europe/Berlin' if time_zone == 'CEST'
-
-      @properties[:granularity] = {
-        :type => 'period',
-        :period => gran,
-        :timeZone => time_zone
       }
       self
     end
 
-    def to_json
-      @properties.to_json
-    end
-
-    def limit_spec(limit, columns)
-      @properties[:limitSpec] = {
-        :type => :default,
-        :limit => limit,
-        :columns => order_by_column_spec(columns)
-      }
-      self
-    end
-
-    private
-
-    def to_druid_notation(string)
-      string.to_s.split('_').
-        each_with_index.map { |v, i| i == 0 ? v : v.capitalize }.
-        join
-    end
-
-    def order_by_column_spec(columns)
-      columns.map do |dimension, direction|
-        {
-          :dimension => dimension,
-          :direction => direction
-        }
-      end
-    end
-
-    def mk_interval(from, to)
-      from = today + from if from.is_a?(Fixnum)
-      to = today + to if to.is_a?(Fixnum)
-
-      from = DateTime.parse(from.to_s) unless from.respond_to? :iso8601
-      to = DateTime.parse(to.to_s) unless to.respond_to? :iso8601
-      "#{from.iso8601}/#{to.iso8601}"
-    end
-
-    def contains_aggregation?(metric)
-      return false if @properties[:aggregations].nil?
-      @properties[:aggregations].index { |aggregation| aggregation[:name] == metric.to_s }
-    end
   end
-
 end

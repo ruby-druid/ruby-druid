@@ -1,3 +1,5 @@
+require 'multi_json'
+
 module Druid
   class DataSource
 
@@ -22,7 +24,7 @@ module Druid
         raise "Request failed: #{response.code}: #{response.body}"
       end
 
-      @metadata = JSON.parse(response.body)
+      @metadata = MultiJson.load(response.body)
     end
 
     def metrics
@@ -48,7 +50,7 @@ module Druid
         raise "Request failed: #{response.code}: #{response.body}"
       end
 
-      JSON.parse(response.body).map do |row|
+      MultiJson.load(response.body).map do |row|
         ResponseRow.new(row)
       end
     end

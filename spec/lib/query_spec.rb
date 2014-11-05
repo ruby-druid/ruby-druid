@@ -218,17 +218,9 @@ describe Druid::Query do
 
   describe '#build_aggregation' do
     it 'builds aggregation with custom options' do
-      expect(@query.build_aggregation(:max, :a, custom_option: 'b')).to eq(
+      expect(@query.build_aggregation(:max, :a, customOption: 'b')).to eq(
         type: 'max', name: 'a', fieldName: 'a', customOption: 'b'
       )
-    end
-
-    context 'when field_names option passed' do
-      it 'builds aggregation without default field_name value' do
-        expect(@query.build_aggregation(:max, :a, field_names: ['b', 'c'])).to eq(
-          type: 'max', name: 'a', fieldNames: ['b', 'c']
-        )
-      end
     end
 
     context 'when aggregation type is filtered' do
@@ -256,16 +248,6 @@ describe Druid::Query do
     ])
   end
 
-  it 'removes duplicate aggregation fields' do
-    @query.long_sum(:a, :b)
-    @query.long_sum(:b)
-
-    expect(JSON.parse(@query.to_json)['aggregations']).to eq([
-      { 'type' => 'longSum', 'name' => 'a', 'fieldName' => 'a'},
-      { 'type' => 'longSum', 'name' => 'b', 'fieldName' => 'b'},
-    ])
-  end
-
   it 'must be chainable' do
     q = [Druid::Query.new]
     q.push q[-1].query_type('a')
@@ -283,12 +265,12 @@ describe Druid::Query do
   end
 
   it 'parses intervals from strings' do
-    @query.interval('2013-01-26T0', '2020-01-26T00:15')
+    @query.interval('2013-01-26T00', '2020-01-26T00:15')
     expect(JSON.parse(@query.to_json)['intervals']).to eq(['2013-01-26T00:00:00+00:00/2020-01-26T00:15:00+00:00'])
   end
 
   it 'takes multiple intervals' do
-    @query.intervals([['2013-01-26T0', '2020-01-26T00:15'],['2013-04-23T0', '2013-04-23T15:00']])
+    @query.intervals([['2013-01-26T00', '2020-01-26T00:15'],['2013-04-23T00', '2013-04-23T15:00']])
     expect(JSON.parse(@query.to_json)['intervals']).to eq(["2013-01-26T00:00:00+00:00/2020-01-26T00:15:00+00:00", "2013-04-23T00:00:00+00:00/2013-04-23T15:00:00+00:00"])
   end
 
@@ -303,11 +285,11 @@ describe Druid::Query do
   end
 
   it 'should take a period' do
-    @query.granularity(:day, 'CEST')
-    expect(@query.properties[:granularity]).to eq({
+    @query.granularity('P1D', 'CEST')
+    expect(@query[:granularity]).to eq({
       :type => "period",
       :period => "P1D",
-      :timeZone => "Europe/Berlin"
+      :timeZone => "CEST"
     })
   end
 
@@ -537,7 +519,7 @@ end
   end
 
   it 'takes type, limit and columns from limit method' do
-    @query.limit_spec(10, :a => 'ASCENDING', :b => 'DESCENDING')
+    @query.limit(10, :a => 'ASCENDING', :b => 'DESCENDING')
     result = JSON.parse(@query.to_json)
     expect(result['limitSpec']).to eq({
       'type' => 'default',

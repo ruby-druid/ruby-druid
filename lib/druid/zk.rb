@@ -1,5 +1,5 @@
 require 'zk'
-require 'json'
+require 'multi_json'
 require 'rest_client'
 
 module Druid
@@ -62,13 +62,13 @@ module Druid
 
     def verify_broker(service, name)
       info = @zk.get("#{watch_path(service)}/#{name}")
-      node = JSON.parse(info[0])
+      node = MultiJson.load(info[0])
       uri = "http://#{node['address']}:#{node['port']}/druid/v2/"
       check = RestClient::Request.execute({
         method: :get, url: "#{uri}datasources/",
         timeout: 5, open_timeout: 5
       })
-      return [uri, JSON.parse(check.to_str)] if check.code == 200
+      return [uri, MultiJson.load(check.to_str)] if check.code == 200
     rescue RestClient::ResourceNotFound
       return false
     end

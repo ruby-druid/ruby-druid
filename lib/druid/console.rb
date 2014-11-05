@@ -9,7 +9,7 @@ require 'druid'
 
 Ripl::Shell.class_eval do
   def format_query_result(result, query)
-    include_timestamp = query.properties[:granularity] != 'all'
+    include_timestamp = query[:granularity] != 'all'
 
     keys = result.empty? ? [] : result.last.keys
     grouped_result = result.group_by(&:timestamp)

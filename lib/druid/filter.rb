@@ -1,34 +1,16 @@
+require 'druid/serializable'
+
 module Druid
-  class Filter
-    (instance_methods + private_instance_methods).each do |method|
-      unless method.to_s =~ /^(__|instance_eval|instance_exec|initialize|object_id|raise|puts|inspect|send)/ || method.to_s =~ /\?/
-        undef_method method
-      end
-    end
+  class Filter < BasicObject
+    include Serializable
 
     def method_missing(method_id, *args)
       FilterDimension.new(method_id)
     end
   end
 
-  class FilterParameter
-    (instance_methods + private_instance_methods).each do |method|
-      unless method.to_s =~ /^(__|instance_eval|instance_exec|initialize|object_id|raise|puts|inspect|class|send)/ || method.to_s =~ /\?/
-        undef_method method
-      end
-    end
-
-    def to_s
-      to_hash.to_s
-    end
-
-    def as_json(*a)
-      to_hash
-    end
-
-    def to_json(*a)
-      to_hash.to_json(*a)
-    end
+  class FilterParameter #< BasicObject
+    include Serializable
   end
 
   class FilterDimension < FilterParameter
@@ -40,15 +22,15 @@ module Druid
 
     def in_rec(bounds)
       RecFilter.new(@name, bounds)
-    end 
+    end
 
     def in_circ(bounds)
       CircFilter.new(@name, bounds)
-    end 
+    end
 
     def eq(value)
-      return self.in(value) if value.is_a? Array
-      return self.regexp(value) if value.is_a? Regexp
+      return self.in(value) if value.is_a?(::Array)
+      return self.regexp(value) if value.is_a?(::Regexp)
       @value = value
       self
     end
@@ -117,16 +99,14 @@ module Druid
     end
 
     def regexp(r)
-      r = Regexp.new(r) unless r.is_a? Regexp
+      r = ::Regexp.new(r) unless r.is_a?(::Regexp)
       @regexp = r.inspect[1...-1] #to_s doesn't work
       self
     end
 
-    def to_hash
-      raise 'no value assigned' unless @value.nil? ^ @regexp.nil?
-      hash = {
-        :dimension => @name
-      }
+    def to_h
+      ::Kernel.raise 'no value assigned' unless @value.nil? ^ @regexp.nil?
+      hash = { dimension: @name }
       if @value
         hash['type'] = 'selector'
         hash['value'] = @value
@@ -140,13 +120,13 @@ module Druid
     private
 
     def filter_multiple(values, operator, method)
-      raise 'Values cannot be empty' if values.empty?
-      return self.send(method, values[0]) if values.length == 1
+      ::Kernel.raise 'Values cannot be empty' if values.empty?
+      return self.__send__(method, values[0]) if values.length == 1
 
       filter = FilterOperator.new(operator, true)
       values.each do |value|
-        raise 'Value cannot be a parameter' if value.is_a?(FilterParameter)
-        filter.add(FilterDimension.new(@name).send(method, value))
+        ::Kernel.raise 'Value cannot be a parameter' if value.is_a?(FilterParameter)
+        filter.add(FilterDimension.new(@name).__send__(method, value))
       end
       filter
     end
@@ -195,54 +175,52 @@ module Druid
       end
     end
 
-    def to_hash
+    def to_h
       result = {
-        :type => @name
+        type: @name
       }
       if @takes_many
-        result[:fields] = @elements.map(&:to_hash)
+        result[:fields] = @elements.map(&:to_h)
       else
-        result[:field] = @elements[0].to_hash
+        result[:field] = @elements[0].to_h
       end
       result
     end
   end
-  
-  class RecFilter < FilterDimension
 
+  class RecFilter < FilterDimension
     def initialize(dimension, bounds)
       @dimension = dimension
       @bounds = bounds
-    end 
+    end
 
-    def to_hash
+    def to_h
       {
-      :type => "spatial",
-      :dimension => @dimension,
-      :bound =>{
-        :type => "rectangular",
-        :minCoords => @bounds.first,
-        :maxCoords => @bounds.last
+        type: "spatial",
+        dimension: @dimension,
+        bound: {
+          type: "rectangular",
+          minCoords: @bounds.first,
+          maxCoords: @bounds.last
         }
       }
     end
   end
 
   class CircFilter < FilterDimension
-
     def initialize(dimension, bounds)
       @dimension = dimension
       @bounds = bounds
-    end 
+    end
 
-    def to_hash
+    def to_h
       {
-      :type => "spatial",
-      :dimension => @dimension,
-      :bound =>{
-        :type => "radius",
-        :coords => @bounds.first,
-        :radius => @bounds.last
+        type: "spatial",
+        dimension: @dimension,
+        bound: {
+          type: "radius",
+          coords: @bounds.first,
+          radius: @bounds.last
         }
       }
     end
@@ -255,14 +233,14 @@ module Druid
     end
 
     def self.new_comparison(dimension, operator, value)
-      self.new(dimension, "#{dimension} #{operator} #{value.is_a?(String) ? "'#{value}'" : value}")
+      self.new(dimension, "#{dimension} #{operator} #{value.is_a?(::String) ? "'#{value}'" : value}")
     end
 
-    def to_hash
+    def to_h
       {
-        :type => 'javascript',
-        :dimension => @dimension,
-        :function => "function(#{@dimension}) { return(#{@expression}); }"
+        type: 'javascript',
+        dimension: @dimension,
+        function: "function(#{@dimension}) { return(#{@expression}); }"
       }
     end
   end
