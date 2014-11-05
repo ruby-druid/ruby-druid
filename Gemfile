@@ -5,7 +5,7 @@ gemspec
 gem 'liquid-ext'
 gem 'ripl'
 gem 'terminal-table'
-gem 'oj'
+gem 'oj', platform: :mri
 
 group :test, :development do
   gem 'liquid-development'
