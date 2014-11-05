@@ -48,6 +48,16 @@ each row.  The timestamp by can be received by a method with the same name
 (i.e. `row.timestamp`), all row values by hashlike syntax (i.e.
 `row['dimension'])
 
+An options hash can be passed when creating `Druid::Client` instance:
+
+```ruby
+client = Druid::Client.new('zk1:2181,zk2:2181/druid', http_timeout: 20)
+```
+
+Supported options are:
+* `static_setup` to explicitly specify a broker url, e.g. `static_setup: { 'my/source_name' => 'http://1.2.3.4:8080/druid/v2/' }`
+* `http_timeout` to define a timeout for sending http queries to a broker (in minutes, default value is 2)
+
 ### GroupBy
 
 A [GroupByQuery](https://github.com/metamx/druid/wiki/GroupByQuery) sets the
@@ -81,11 +91,17 @@ A simple syntax for post aggregations with +,-,/,* can be used like:
 
 ```ruby
 query = Druid::Query.new('service/source').long_sum([:aggregate1, :aggregate2])
-query.postagg{(aggregate2 + aggregate2).as output_field_name}
+query.postagg { (aggregate2 + aggregate2).as output_field_name }
 ```
 
 Required fields for the postaggregation are fetched automatically by the
 library.
+
+Javascript post aggregations are also supported:
+
+```ruby
+query.postagg { js('function(aggregate1, aggregate2) { return aggregate1 + aggregate2; }').as result }
+```
 
 ### Query Interval
 

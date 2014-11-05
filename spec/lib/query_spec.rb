@@ -1,5 +1,3 @@
-require "spec_helper"
-
 describe Druid::Query do
 
   before :each do
@@ -34,91 +32,113 @@ describe Druid::Query do
     expect(result['threshold']).to eq(25)
   end
 
-  it 'build a post aggregation with a constant right' do
-    @query.postagg{(a + 1).as ctr }
+  describe '#postagg' do
+    it 'build a post aggregation with a constant right' do
+      @query.postagg{(a + 1).as ctr }
 
-    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
-      "fn"=>"+",
-      "fields"=>
-      [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-       {"type"=>"constant", "value"=>1}],
-      "name"=>"ctr"}])
-  end
-
-  it 'build a + post aggregation' do
-    @query.postagg{(a + b).as ctr }
-    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
-      "fn"=>"+",
-      "fields"=>
-      [{"type"=>"fieldAccess","name"=>"a", "fieldName"=>"a"},
-      {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-      "name"=>"ctr"}])
-  end
-
-  it 'build a - post aggregation' do
-    @query.postagg{(a - b).as ctr }
-    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
-      "fn"=>"-",
-      "fields"=>
-      [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-      {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-      "name"=>"ctr"}])
-  end
-
-  it 'build a * post aggregation' do
-    @query.postagg{(a * b).as ctr }
-    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
-      "fn"=>"*",
-      "fields"=>
-      [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-      {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-      "name"=>"ctr"}])
-  end
-
-  it 'build a / post aggregation' do
-    @query.postagg{(a / b).as ctr }
-    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
-      "fn"=>"/",
-      "fields"=>
-      [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-      {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-    "name"=>"ctr"}])
-  end
-
-  it 'build a complex post aggregation' do
-    @query.postagg{((a / b) * 1000).as ctr }
-    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
-      "fn"=>"*",
-      "fields"=>
-      [{"type"=>"arithmetic", "fn"=>"/", "fields"=>
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
+        "fn"=>"+",
+        "fields"=>
         [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-         {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}]},
-      {"type"=>"constant", "value"=>1000}],
-    "name"=>"ctr"}])
-  end
+         {"type"=>"constant", "value"=>1}],
+        "name"=>"ctr"}])
+    end
 
-  it 'adds fields required by the postagg operation to longsum' do
-    @query.postagg{ (a/b).as c }
-    expect(JSON.parse(@query.to_json)['aggregations']).to eq([{"type"=>"longSum", "name"=>"a", "fieldName"=>"a"},
-                                                          {"type"=>"longSum", "name"=>"b", "fieldName"=>"b"}])
-  end
+    it 'build a + post aggregation' do
+      @query.postagg{(a + b).as ctr }
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
+        "fn"=>"+",
+        "fields"=>
+        [{"type"=>"fieldAccess","name"=>"a", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        "name"=>"ctr"}])
+    end
 
-  it 'chains aggregations' do
-    @query.postagg{(a / b).as ctr }.postagg{(b / a).as rtc }
+    it 'build a - post aggregation' do
+      @query.postagg{(a - b).as ctr }
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
+        "fn"=>"-",
+        "fields"=>
+        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        "name"=>"ctr"}])
+    end
 
-    expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
-      "fn"=>"/",
-      "fields"=>
-      [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-      {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
-    "name"=>"ctr"},
-    {"type"=>"arithmetic",
-      "fn"=>"/",
-      "fields"=>
-      [{"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"},
-      {"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"}],
-    "name"=>"rtc"}
-    ])
+    it 'build a * post aggregation' do
+      @query.postagg{(a * b).as ctr }
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
+        "fn"=>"*",
+        "fields"=>
+        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        "name"=>"ctr"}])
+    end
+
+    it 'build a / post aggregation' do
+      @query.postagg{(a / b).as ctr }
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
+        "fn"=>"/",
+        "fields"=>
+        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+      "name"=>"ctr"}])
+    end
+
+    it 'build a complex post aggregation' do
+      @query.postagg{((a / b) * 1000).as ctr }
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
+        "fn"=>"*",
+        "fields"=>
+        [{"type"=>"arithmetic", "fn"=>"/", "fields"=>
+          [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
+           {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}]},
+        {"type"=>"constant", "value"=>1000}],
+      "name"=>"ctr"}])
+    end
+
+    it 'adds fields required by the postagg operation to longsum' do
+      @query.postagg{ (a/b).as c }
+      expect(JSON.parse(@query.to_json)['aggregations']).to eq([
+        {"type"=>"longSum", "name"=>"a", "fieldName"=>"a"},
+        {"type"=>"longSum", "name"=>"b", "fieldName"=>"b"}
+      ])
+    end
+
+    it 'chains aggregations' do
+      @query.postagg{(a / b).as ctr }.postagg{(b / a).as rtc }
+
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
+        "fn"=>"/",
+        "fields"=>
+        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+      "name"=>"ctr"},
+      {"type"=>"arithmetic",
+        "fn"=>"/",
+        "fields"=>
+        [{"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"},
+        {"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"}],
+      "name"=>"rtc"}
+      ])
+    end
+
+    it 'builds a javascript post aggregation' do
+      @query.postagg { js('function(agg1, agg2) { return agg1 + agg2; }').as result }
+      expect(JSON.parse(@query.to_json)['postAggregations']).to eq([
+        {
+          'type' => 'javascript',
+          'name' => 'result',
+          'fieldNames' => ['agg1', 'agg2'],
+          'function' => 'function(agg1, agg2) { return agg1 + agg2; }'
+        }
+      ])
+    end
+
+    it 'raises an error when an invalid javascript function is used' do
+      expect {
+        @query.postagg { js('{ return a_with_b - a; }').as b }
+      }.to raise_error
+    end
   end
 
   it 'builds aggregations on long_sum' do
@@ -129,7 +149,6 @@ describe Druid::Query do
       { 'type' => 'longSum', 'name' => 'c', 'fieldName' => 'c'}
     ])
   end
-
 
   it 'appends long_sum properties from aggregations on calling long_sum again' do
     @query.long_sum(:a, :b, :c)
@@ -363,11 +382,25 @@ end
     ]})
   end
 
-  it 'creates a greater than having clause' do
-    @query.having{a > 100}
-    expect(JSON.parse(@query.to_json)['having']).to eq({
-      "type"=>"greaterThan", "aggregation"=>"a", "value"=>100
-    })
+  describe '#having' do
+    it 'creates a greater than having clause' do
+      @query.having{a > 100}
+      expect(JSON.parse(@query.to_json)['having']).to eq({
+        "type"=>"greaterThan", "aggregation"=>"a", "value"=>100
+      })
+    end
+
+    it 'chains having clauses with and' do
+      @query.having{a > 100}.having{b > 200}.having{c > 300}
+      expect(JSON.parse(@query.to_json)['having']).to eq({
+        "type" => "and",
+        "havingSpecs" => [
+          { "type" => "greaterThan", "aggregation" => "a", "value" => 100 },
+          { "type" => "greaterThan", "aggregation" => "b", "value" => 200 },
+          { "type" => "greaterThan", "aggregation" => "c", "value" => 300 }
+        ]
+      })
+    end
   end
 
   it 'does not accept in with empty array' do
