@@ -7,6 +7,8 @@ require 'druid/data_source'
 module Druid
   class Client
 
+    attr_reader :zk
+
     def initialize(zookeeper, opts = {})
       @zk = ZK.new(zookeeper, opts)
     end
