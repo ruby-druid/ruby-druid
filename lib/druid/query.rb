@@ -53,6 +53,23 @@ module Druid
     end
 
     ## query types
+    def search(what = "",dimensions = [])
+      query_type(:search)
+      self[:searchDimensions] = dimensions unless dimensions.empty?
+      # for now we always sort lexicographic
+      self[:sort] = {
+        type: "lexicographic"
+      }
+      self[:query] = {
+        type: "insensitive_contains",
+        value: what
+      }
+      self
+    end
+
+    def search?
+      self[:queryType] == :search
+    end
 
     def query_type(type)
       self[:queryType] = type

@@ -9,11 +9,30 @@ require 'druid'
 
 Ripl::Shell.class_eval do
   def format_query_result(result, query)
-    include_timestamp = query[:granularity] != 'all'
 
+    if query.search?
+      # the "magic" response row should be refactored ...
+      group = {}
+      result.each do |sub|
+        sub.row.each do |entry|
+          (group[entry["dimension"]] ||= []) << entry["value"]
+        end
+      end
+      tt = Terminal::Table.new do
+        group.each do |dimension, values|
+          next if values.empty?
+          add_row :separator
+          add_row [{value:dimension, colspan:2}]
+          add_row :separator
+          values.each {|v| add_row ["", v] if !v.empty?}
+        end
+      end
+      return tt
+    end
+
+    include_timestamp = query[:granularity] != 'all'
     keys = result.empty? ? [] : result.last.keys
     grouped_result = result.group_by(&:timestamp)
-
     Terminal::Table.new(:headings => keys) do
       grouped_result.each do |timestamp, rows|
         if include_timestamp
