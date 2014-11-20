@@ -53,9 +53,17 @@ module Druid
     end
 
     ## query types
-    def search(what = "",dimensions = [])
+    def metadata
+      query_type(:segmentMetadata)
+      self.delete :granularity
+      self
+    end
+
+
+    def search(what = "",dimensions = [], limit = nil)
       query_type(:search)
       self[:searchDimensions] = dimensions unless dimensions.empty?
+      self[:limit] = limit if  limit
       # for now we always sort lexicographic
       self[:sort] = {
         type: "lexicographic"
