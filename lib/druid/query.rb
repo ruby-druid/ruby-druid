@@ -163,21 +163,21 @@ module Druid
     ## filters
 
     def filter(hash = nil, &block)
-      filter_dimensions(hash) if hash
-      filter_block(&block) if block
+      filter_from_hash(hash) if hash
+      filter_from_block(&block) if block
       self
     end
 
-    def filter_dimensions(hash)
+    def filter_from_hash(hash, type = :in)
       last = nil
       hash.each do |k, values|
-        filter = FilterDimension.new(k).in(values)
+        filter = FilterDimension.new(k).__send__(type, values)
         last = last ? last.&(filter) : filter
       end
       self[:filter] = self[:filter] ? self[:filter].&(last) : last
     end
 
-    def filter_block(&block)
+    def filter_from_block(&block)
       filter = Filter.new.instance_exec(&block)
       raise "Not a valid filter" unless filter.is_a? FilterParameter
       self[:filter] = self[:filter] ? self[:filter].&(filter) : filter

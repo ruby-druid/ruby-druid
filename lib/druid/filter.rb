@@ -53,6 +53,9 @@ module Druid
       filter_multiple(values, 'and', :neq)
     end
 
+    alias_method :not_in, :nin
+
+
     def &(other)
       filter_and = FilterOperator.new('and', true)
       filter_and.add(self)
