@@ -140,6 +140,7 @@ module Druid
 
     def aggregate(type, metric, options = {})
       self[:aggregations] ||= []
+      return self if self[:aggregations].any?{|agg| agg[:fieldName] == metric}
       self[:aggregations] << build_aggregation(type.to_s, metric, options)
       self
     end
