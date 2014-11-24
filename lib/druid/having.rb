@@ -38,6 +38,17 @@ module Druid
   class HavingClause < HavingFilter
     include Serializable
 
+    def self.from_h(h)
+      self.for h[:metric], h[:operator], h[:value]
+    end
+
+    def self.for(metric, operator, value)
+      h = new(metric)
+      # TODO should check the operator
+      h.__send__(operator, value)
+      h
+    end
+
     def initialize(metric)
       @metric = metric
     end

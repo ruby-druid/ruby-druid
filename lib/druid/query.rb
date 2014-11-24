@@ -184,18 +184,26 @@ module Druid
     end
 
     ## having
-
-    def having(&block)
-      self[:having] = Having.new.instance_exec(&block)
+    def having(hash = nil, &block)
+      having_from_hash(hash) if hash
+      having_from_block(&block) if block
       self
     end
 
-    def having(&block)
-      having = Having.new.instance_exec(&block)
+    def having_from_block(&block)
+      chain_having Having.new.instance_exec(&block)
+    end
+
+    def having_from_hash(h)
+      chain_having HavingClause.from_h(h)
+    end
+
+    def chain_having(having)
       having = self[:having].chain(having) if self[:having]
       self[:having] = having
       self
     end
+
 
     ## limit/sort
 
