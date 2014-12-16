@@ -7,7 +7,12 @@ module Druid
 
     def initialize(name, uri)
       @name = name
-      @uri = uri = URI(uri)
+      @uri = uri
+    end
+
+    def uri
+      @uri = URI(@uri) if @uri.is_a?(String)
+      @uri
     end
 
     def metadata
@@ -38,10 +43,10 @@ module Druid
     def send(query)
       query.data_source(name)
 
-      req = Net::HTTP::Post.new(@uri.path, {'Content-Type' => 'application/json'})
+      req = Net::HTTP::Post.new(uri.path, {'Content-Type' => 'application/json'})
       req.body = query.to_json
 
-      response = Net::HTTP.new(@uri.host, @uri.port).start do |http|
+      response = Net::HTTP.new(uri.host, uri.port).start do |http|
         http.read_timeout = 60_000 # ms
         http.request(req)
       end
