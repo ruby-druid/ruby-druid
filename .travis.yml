@@ -1,9 +1,5 @@
 language: ruby
 cache: bundler
 rvm:
-- 2.1.3
-- jruby
-notifications:
-  email: false
-  slack:
-    secure: Bx6zevwORhsDePzVk+QWDta7z9DWsZRnSrpPy/JKmkO5XbSuJqmkZX5NyJjG0skaKmylb2Y5CmPgpKyg3vlr09e7KSQd3fzNvgWWtoKtrV9TuSaJXPcheT50q+CtkaW2eqWpALMmbIyiRFu08TVyYW4HFFsy+E74Zxyeswpimfs=
+- 2.1.5
+- 2.2.0
