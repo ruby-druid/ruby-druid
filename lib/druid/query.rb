@@ -29,6 +29,11 @@ module Druid
       intervals([[from, to]])
     end
 
+    def use_cache(use=true)
+      self[:useCache] = use
+    end
+
+
     def intervals(is)
       self[:intervals] = is.map do |from, to|
         from = from.respond_to?(:iso8601) ? from.iso8601 : ISO8601::DateTime.new(from).to_s
