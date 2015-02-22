@@ -108,16 +108,52 @@ module Druid
       self
     end
 
-    ## aggregations
-
-    [:count, :long_sum, :double_sum, :min, :max, :hyper_unique].each do |method_name|
+    [:long_sum, :double_sum, :count, :min, :max, :hyper_unique].each do |method_name|
       aggregation_type = method_name.to_s.camelize(:lower)
       define_method method_name do |*metrics|
-        metrics.flatten.compact.each do |metric|
+        metrics.flatten.each do |metric|
           aggregate(aggregation_type, metric)
         end
         self
       end
+    end
+
+    def cardinality(metric, dimensions, by_row = true)
+      aggregate(:cardinality, metric,
+        field_names: dimensions,
+        by_row: by_row
+      )
+    end
+
+    def js_aggregation(metric, columns, functions)
+      aggregate(:javascript, metric,
+        field_names: columns,
+        fn_aggregate: functions[:aggregate],
+        fn_combine: functions[:combine],
+        fn_reset: functions[:reset]
+      )
+    end
+
+    def aggregate(agg_type, metric, options = {})
+      @properties[:aggregations] ||= []
+
+      unless contains_aggregation?(metric)
+        @properties[:aggregations] << build_aggregation(agg_type, metric, options)
+      end
+
+      self
+    end
+
+    def build_aggregation(agg_type, metric, options = {})
+      options = {
+        type: to_druid_notation(agg_type),
+        name: metric.to_s
+      }.merge(
+        Hash[options.map { |k, v| [to_druid_notation(k).to_sym, v] }]
+      )
+
+      options[:fieldName] ||= metric.to_s if !options[:fieldNames] && agg_type != :filtered
+      options
     end
 
     alias_method :sum, :long_sum
@@ -146,7 +182,7 @@ module Druid
     end
 
     def build_aggregation(type, metric, options = {})
-      options[:fieldName] ||= metric.to_s unless %w(cardinality filtered javascript).include?(type.to_s)
+      options[:fieldName] ||= metric.to_s unless options[:fieldNames] || %w(cardinality filtered javascript).include?(type.to_s)
       { type: type.to_s, name: metric.to_s }.merge(options)
     end
 
@@ -163,8 +199,8 @@ module Druid
 
     ## filters
 
-    def filter(hash = nil, &block)
-      filter_from_hash(hash) if hash
+    def filter(hash = nil, type = :in, &block)
+      filter_from_hash(hash, type) if hash
       filter_from_block(&block) if block
       self
     end
@@ -205,7 +241,6 @@ module Druid
       self
     end
 
-
     ## limit/sort
 
     def limit(limit, columns)
@@ -217,6 +252,28 @@ module Druid
         end
       }
       self
+    end
+
+    private
+
+    def to_druid_notation(string)
+      string.to_s.split('_').
+        each_with_index.map { |v, i| i == 0 ? v : v.capitalize }.
+        join
+    end
+
+    def order_by_column_spec(columns)
+      columns.map do |dimension, direction|
+        {
+          :dimension => dimension,
+          :direction => direction
+        }
+      end
+    end
+
+    def contains_aggregation?(metric)
+      return false if @properties[:aggregations].nil?
+      @properties[:aggregations].index { |aggregation| aggregation[:name] == metric.to_s }
     end
 
   end

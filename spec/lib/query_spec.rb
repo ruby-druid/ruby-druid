@@ -223,6 +223,14 @@ describe Druid::Query do
       )
     end
 
+    context 'when field_names option passed' do
+      it 'builds aggregation without default field_name value' do
+        expect(@query.build_aggregation(:max, :a, fieldNames: ['b', 'c'])).to eq(
+          type: 'max', name: 'a', fieldNames: ['b', 'c']
+        )
+      end
+    end
+
     context 'when aggregation type is filtered' do
       it 'builds aggregation without default field_name value' do
         expect(@query.build_aggregation(:filtered, :a)).to eq(
@@ -245,6 +253,16 @@ describe Druid::Query do
       { 'type' => 'longSum', 'name' => 'f', 'fieldName' => 'f'},
       { 'type' => 'doubleSum', 'name' => 'x', 'fieldName' => 'x'},
       { 'type' => 'doubleSum', 'name' => 'y', 'fieldName' => 'y'}
+    ])
+  end
+
+  it 'removes duplicate aggregation fields' do
+    @query.long_sum(:a, :b)
+    @query.long_sum(:b)
+
+    expect(JSON.parse(@query.to_json)['aggregations']).to eq([
+      { 'type' => 'longSum', 'name' => 'a', 'fieldName' => 'a'},
+      { 'type' => 'longSum', 'name' => 'b', 'fieldName' => 'b'},
     ])
   end
 
@@ -285,191 +303,261 @@ describe Druid::Query do
   end
 
   it 'should take a period' do
-    @query.granularity('P1D', 'CEST')
-    expect(@query[:granularity]).to eq({
+    @query.granularity("P1D", 'Europe/Berlin')
+    expect(@query.as_json[:granularity]).to eq({
       :type => "period",
       :period => "P1D",
-      :timeZone => "CEST"
+      :timeZone => "Europe/Berlin"
     })
   end
 
-  it 'creates a in_circ filter' do
-    @query.filter{a.in_circ [[52.0,13.0], 10.0]}
-    expect(JSON.parse(@query.to_json)['filter']).to eq({
-    "type" => "spatial",
-    "dimension" => "a",
-    "bound" => {
-        "type" => "radius",
-        "coords" => [52.0, 13.0],
-        "radius" =>  10.0
-      }
-    })
-  end
-
-  it 'creates a in_rec filter' do
-    @query.filter{a.in_rec [[10.0, 20.0], [30.0, 40.0]] }
-    expect(JSON.parse(@query.to_json)['filter']).to eq({
-    "type" => "spatial",
-    "dimension" => "a",
-    "bound" => {
-        "type" => "rectangular",
-        "minCoords" => [10.0, 20.0],
-        "maxCoords" => [30.0, 40.0]
-      }
-    })
-  end
-
-  it 'creates an equals filter' do
-    @query.filter{a.eq 1}
-    expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"selector", "dimension"=>"a", "value"=>1})
-  end
-
-  it 'creates an equals filter with ==' do
-    @query.filter{a == 1}
-    expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"selector", "dimension"=>"a", "value"=>1})
-  end
-
-
-  it 'creates a not filter' do
-    @query.filter{!a.eq 1}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
-      {"type"=>"selector", "dimension"=>"a", "value"=>1},
-    "type" => "not"})
-  end
-
-  it 'creates a not filter with neq' do
-    @query.filter{a.neq 1}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
-      {"type"=>"selector", "dimension"=>"a", "value"=>1},
-    "type" => "not"})
-  end
-
-  it 'creates a not filter with !=' do
-    @query.filter{a != 1}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
-      {"type"=>"selector", "dimension"=>"a", "value"=>1},
-    "type" => "not"})
-  end
-
-
-  it 'creates an and filter' do
-    @query.filter{a.neq(1) & b.eq(2) & c.eq('foo')}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
-      {"type"=>"not", "field"=>{"type"=>"selector", "dimension"=>"a", "value"=>1}},
-      {"type"=>"selector", "dimension"=>"b", "value"=>2},
-      {"type"=>"selector", "dimension"=>"c", "value"=>"foo"}
-    ],
-  "type" => "and"})
-end
-
-  it 'creates an or filter' do
-    @query.filter{a.neq(1) | b.eq(2) | c.eq('foo')}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
-      {"type"=>"not", "field"=> {"type"=>"selector", "dimension"=>"a", "value"=>1}},
-      {"type"=>"selector", "dimension"=>"b", "value"=>2},
-      {"type"=>"selector", "dimension"=>"c", "value"=>"foo"}
-    ],
-  "type" => "or"})
-  end
-
-  it 'chains filters' do
-    @query.filter{a.eq(1)}.filter{b.eq(2)}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
-      {"type"=>"selector", "dimension"=>"a", "value"=>1},
-      {"type"=>"selector", "dimension"=>"b", "value"=>2}
-    ],
-    "type" => "and"})
-  end
-
-  it 'creates filter from hash' do
-    @query.filter a:1, b:2
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
-      {"type"=>"selector", "dimension"=>"a", "value"=>1},
-      {"type"=>"selector", "dimension"=>"b", "value"=>2}
-    ],
-    "type" => "and"})
-
-  end
-
-  it 'creates an in statement with or filter' do
-    @query.filter{a.in [1,2,3]}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
-      {"type"=>"selector", "dimension"=>"a", "value"=>1},
-      {"type"=>"selector", "dimension"=>"a", "value"=>2},
-      {"type"=>"selector", "dimension"=>"a", "value"=>3}
-    ],
-    "type" => "or"})
-  end
-
-  it 'creates a nin statement with and filter' do
-    @query.filter{a.nin [1,2,3]}
-    expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
-      {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>1},"type" => "not"},
-      {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>2},"type" => "not"},
-      {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>3},"type" => "not"}
-    ],
-    "type" => "and"})
-  end
-
-  it 'creates a javascript with > filter' do
-    @query.filter{a > 100}
-    expect(JSON.parse(@query.to_json)['filter']).to eq({
-      "type" => "javascript",
+  describe '#filter' do
+    it 'creates a in_circ filter' do
+      @query.filter{a.in_circ [[52.0,13.0], 10.0]}
+      expect(JSON.parse(@query.to_json)['filter']).to eq({
+      "type" => "spatial",
       "dimension" => "a",
-      "function" => "function(a) { return(a > 100); }"
-    })
-  end
-
-  it 'creates a mixed javascript filter' do
-    @query.filter{(a >= 128) & (a != 256)}
-    expect(JSON.parse(@query.to_json)['filter']).to eq({"fields" => [
-      {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a >= 128); }"},
-      {"field" => {"type" => "selector", "dimension" => "a", "value" => 256}, "type" => "not"}
-    ],
-    "type" => "and"})
-  end
-
-  it 'creates a complex javascript filter' do
-    @query.filter{(a >= 4) & (a <= '128')}
-    expect(JSON.parse(@query.to_json)['filter']).to eq({"fields" => [
-      {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a >= 4); }"},
-      {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a <= '128'); }"}
-    ],
-    "type" => "and"})
-  end
-
-  it 'can chain two in statements' do
-    @query.filter{a.in([1,2,3]) & b.in([1,2,3])}
-    expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"and", "fields"=>[
-      {"type"=>"or", "fields"=>[
-        {"type"=>"selector", "dimension"=>"a", "value"=>1},
-        {"type"=>"selector", "dimension"=>"a", "value"=>2},
-        {"type"=>"selector", "dimension"=>"a", "value"=>3}
-      ]},
-      {"type"=>"or", "fields"=>[
-        {"type"=>"selector", "dimension"=>"b", "value"=>1},
-        {"type"=>"selector", "dimension"=>"b", "value"=>2},
-        {"type"=>"selector", "dimension"=>"b", "value"=>3}
-      ]}
-    ]})
-  end
-
-  describe '#having' do
-    it 'creates a greater than having clause' do
-      @query.having{a > 100}
-      expect(JSON.parse(@query.to_json)['having']).to eq({
-        "type"=>"greaterThan", "aggregation"=>"a", "value"=>100
+      "bound" => {
+          "type" => "radius",
+          "coords" => [52.0, 13.0],
+          "radius" =>  10.0
+        }
       })
     end
 
-    it 'chains having clauses with and' do
-      @query.having{a > 100}.having{b > 200}.having{c > 300}
-      expect(JSON.parse(@query.to_json)['having']).to eq({
-        "type" => "and",
-        "havingSpecs" => [
-          { "type" => "greaterThan", "aggregation" => "a", "value" => 100 },
-          { "type" => "greaterThan", "aggregation" => "b", "value" => 200 },
-          { "type" => "greaterThan", "aggregation" => "c", "value" => 300 }
+    it 'creates a in_rec filter' do
+      @query.filter{a.in_rec [[10.0, 20.0], [30.0, 40.0]] }
+      expect(JSON.parse(@query.to_json)['filter']).to eq({
+      "type" => "spatial",
+      "dimension" => "a",
+      "bound" => {
+          "type" => "rectangular",
+          "minCoords" => [10.0, 20.0],
+          "maxCoords" => [30.0, 40.0]
+        }
+      })
+    end
+
+    it 'creates an equals filter' do
+      @query.filter{a.eq 1}
+      expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"selector", "dimension"=>"a", "value"=>1})
+    end
+
+    it 'creates an equals filter with ==' do
+      @query.filter{a == 1}
+      expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"selector", "dimension"=>"a", "value"=>1})
+    end
+
+    it 'creates a not filter' do
+      @query.filter{!a.eq 1}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
+        {"type"=>"selector", "dimension"=>"a", "value"=>1},
+      "type" => "not"})
+    end
+
+    it 'creates a not filter with neq' do
+      @query.filter{a.neq 1}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
+        {"type"=>"selector", "dimension"=>"a", "value"=>1},
+      "type" => "not"})
+    end
+
+    it 'creates a not filter with !=' do
+      @query.filter{a != 1}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"field" =>
+        {"type"=>"selector", "dimension"=>"a", "value"=>1},
+      "type" => "not"})
+    end
+
+    it 'creates an and filter' do
+      @query.filter{a.neq(1) & b.eq(2) & c.eq('foo')}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
+        {"type"=>"not", "field"=>{"type"=>"selector", "dimension"=>"a", "value"=>1}},
+        {"type"=>"selector", "dimension"=>"b", "value"=>2},
+        {"type"=>"selector", "dimension"=>"c", "value"=>"foo"}
+      ],
+      "type" => "and"})
+    end
+
+    it 'creates an or filter' do
+      @query.filter{a.neq(1) | b.eq(2) | c.eq('foo')}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
+        {"type"=>"not", "field"=> {"type"=>"selector", "dimension"=>"a", "value"=>1}},
+        {"type"=>"selector", "dimension"=>"b", "value"=>2},
+        {"type"=>"selector", "dimension"=>"c", "value"=>"foo"}
+      ],
+      "type" => "or"})
+    end
+
+    it 'chains filters' do
+      @query.filter{a.eq(1)}.filter{b.eq(2)}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
+        {"type"=>"selector", "dimension"=>"a", "value"=>1},
+        {"type"=>"selector", "dimension"=>"b", "value"=>2}
+      ],
+      "type" => "and"})
+    end
+
+    it 'creates filter from hash' do
+      @query.filter a:1, b:2
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
+        {"type"=>"selector", "dimension"=>"a", "value"=>1},
+        {"type"=>"selector", "dimension"=>"b", "value"=>2}
+      ],
+      "type" => "and"})
+    end
+
+    context 'when type argument is :nin' do
+      it 'creates nin filter from hash' do
+        @query.filter({ a: 1, b: 2 }, :nin)
+        expect(JSON.parse(@query.to_json)['filter']).to eq({'fields' => [
+          {'type' => 'not', 'field' => { 'dimension' => 'a', 'type' => 'selector', 'value' => 1} },
+          {'type' => 'not', 'field' => { 'dimension' => 'b', 'type' => 'selector', 'value' => 2} }
+        ],
+        'type' => 'and'})
+      end
+    end
+
+    context 'when type argument is invalid' do
+      it 'raises an error' do
+        expect { @query.filter({ a: 1 }, :invalid_type) }.to raise_error
+      end
+    end
+
+    it 'creates an in statement with or filter' do
+      @query.filter{a.in [1,2,3]}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
+        {"type"=>"selector", "dimension"=>"a", "value"=>1},
+        {"type"=>"selector", "dimension"=>"a", "value"=>2},
+        {"type"=>"selector", "dimension"=>"a", "value"=>3}
+      ],
+      "type" => "or"})
+    end
+
+    it 'creates a nin statement with and filter' do
+      @query.filter{a.nin [1,2,3]}
+      expect(JSON.parse(@query.to_json)['filter']).to eq( {"fields" => [
+        {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>1},"type" => "not"},
+        {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>2},"type" => "not"},
+        {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>3},"type" => "not"}
+      ],
+      "type" => "and"})
+    end
+
+    it 'creates a javascript with > filter' do
+      @query.filter{a > 100}
+      expect(JSON.parse(@query.to_json)['filter']).to eq({
+        "type" => "javascript",
+        "dimension" => "a",
+        "function" => "function(a) { return(a > 100); }"
+      })
+    end
+
+    it 'creates a mixed javascript filter' do
+      @query.filter{(a >= 128) & (a != 256)}
+      expect(JSON.parse(@query.to_json)['filter']).to eq({"fields" => [
+        {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a >= 128); }"},
+        {"field" => {"type" => "selector", "dimension" => "a", "value" => 256}, "type" => "not"}
+      ],
+      "type" => "and"})
+    end
+
+    it 'creates a complex javascript filter' do
+      @query.filter{(a >= 4) & (a <= '128')}
+      expect(JSON.parse(@query.to_json)['filter']).to eq({"fields" => [
+        {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a >= 4); }"},
+        {"type" => "javascript", "dimension" => "a", "function" => "function(a) { return(a <= '128'); }"}
+      ],
+      "type" => "and"})
+    end
+
+    it 'can chain two in statements' do
+      @query.filter{a.in([1,2,3]) & b.in([1,2,3])}
+      expect(JSON.parse(@query.to_json)['filter']).to eq({"type"=>"and", "fields"=>[
+        {"type"=>"or", "fields"=>[
+          {"type"=>"selector", "dimension"=>"a", "value"=>1},
+          {"type"=>"selector", "dimension"=>"a", "value"=>2},
+          {"type"=>"selector", "dimension"=>"a", "value"=>3}
+        ]},
+        {"type"=>"or", "fields"=>[
+          {"type"=>"selector", "dimension"=>"b", "value"=>1},
+          {"type"=>"selector", "dimension"=>"b", "value"=>2},
+          {"type"=>"selector", "dimension"=>"b", "value"=>3}
+        ]}
+      ]})
+    end
+  end
+
+  describe '#having' do
+    subject(:having) { JSON.parse(@query.to_json)['having'] }
+
+    it 'creates an equalTo clause using ==' do
+      @query.having { a == 100 }
+      expect(having).to eq({ 'type' => 'equalTo', 'aggregation' => 'a', 'value' => 100 })
+    end
+
+    it 'creates a not equalTo clause using !=' do
+      @query.having { a != 100 }
+      expect(having).to eq({
+        'type' => 'not',
+        'havingSpec' => { 'type' => 'equalTo', 'aggregation' => 'a', 'value' => 100 },
+      })
+    end
+
+    it 'creates a greaterThan clause using >' do
+      @query.having { a > 100 }
+      expect(having).to eq({ 'type' => 'greaterThan', 'aggregation' => 'a', 'value' => 100 })
+    end
+
+    it 'creates a lessThan clause using <' do
+      @query.having { a < 100 }
+      expect(having).to eq({ 'type' => 'lessThan', 'aggregation' => 'a', 'value' => 100 })
+    end
+
+    it 'creates an add clause using &' do
+      @query.having { (a > 100) & (b > 200) }
+      expect(having).to eq({
+        'type' => 'and',
+        'havingSpecs' => [
+          { 'type' => 'greaterThan', 'aggregation' => 'a', 'value' => 100 },
+          { 'type' => 'greaterThan', 'aggregation' => 'b', 'value' => 200 },
+        ]
+      })
+    end
+
+    it 'creates an or clause using |' do
+      @query.having { (a > 100) | (b > 200) }
+      expect(having).to eq({
+        'type' => 'or',
+        'havingSpecs' => [
+          { 'type' => 'greaterThan', 'aggregation' => 'a', 'value' => 100 },
+          { 'type' => 'greaterThan', 'aggregation' => 'b', 'value' => 200 },
+        ]
+      })
+    end
+
+    it 'creates a not clause using !' do
+      @query.having { !((a == 100) & (b == 200)) }
+      expect(having).to eq({
+        'type' => 'not',
+        'havingSpec' => {
+          'type' => 'and',
+          'havingSpecs' => [
+            { 'type' => 'equalTo', 'aggregation' => 'a', 'value' => 100 },
+            { 'type' => 'equalTo', 'aggregation' => 'b', 'value' => 200 },
+          ]
+        }
+      })
+    end
+
+    it 'combines successive calls with and operator' do
+      @query.having { a > 100 }.having { b > 200 }.having { c > 300 }
+      expect(having).to eq({
+        'type' => 'and',
+        'havingSpecs' => [
+          { 'type' => 'greaterThan', 'aggregation' => 'a', 'value' => 100 },
+          { 'type' => 'greaterThan', 'aggregation' => 'b', 'value' => 200 },
+          { 'type' => 'greaterThan', 'aggregation' => 'c', 'value' => 300 },
         ]
       })
     end

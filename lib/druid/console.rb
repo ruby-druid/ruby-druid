@@ -86,6 +86,25 @@ module Druid
       source.query
     end
 
-    def_delegators :query, :group_by, :sum, :long_sum, :double_sum, :count, :hyper_unique, :postagg, :interval, :granularity, :filter, :time_series, :topn
+    def_delegators *[
+      :query,
+      :group_by,
+      :sum,
+      :long_sum,
+      :double_sum,
+      :count,
+      :postagg,
+      :interval,
+      :granularity,
+      :filter,
+      :time_series,
+      :topn,
+      :min,
+      :max,
+      :hyper_unique,
+      :cardinality,
+      :js_aggregation,
+    ]
+
   end
 end
