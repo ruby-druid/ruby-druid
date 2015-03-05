@@ -57,7 +57,7 @@ module Druid
     validates :fnReset, fn: true
 
     attr_accessor :byRow
-    validates :byRow, inclusion: { in: [true, false] }
+    validates :byRow, allow_nil: true, inclusion: { in: [true, false] }
 
     def as_json(options = {})
       super(options.merge(except: %w(errors validation_context)))
