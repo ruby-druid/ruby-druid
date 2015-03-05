@@ -24,7 +24,7 @@ module Druid
 
     def initialize(attributes = {})
       super
-      @queryId = SecureRandom.uuid
+      @queryId ||= SecureRandom.uuid
     end
 
     def as_json(options = {})

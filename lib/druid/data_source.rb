@@ -53,7 +53,7 @@ module Druid
       end
 
       if response.code != '200'
-        # ignore GroupBy cache issues and try againg without cached results
+        # ignore GroupBy cache issues and try again without cached results
         if query.context.useCache != false && response.code == "500" && response.body =~ /Cannot have a null result!/
           query.context.useCache = false
           return self.query(query)

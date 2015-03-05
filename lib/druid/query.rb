@@ -110,6 +110,16 @@ module Druid
       @aggregations ||= []
     end
 
+    def aggregations=(value)
+      if value.is_a?(Array)
+        @aggregations = value.map do |x|
+          Aggregation.new(x)
+        end
+      else
+        @aggregation = value
+      end
+    end
+
     class PostaggregationsValidator < ActiveModel::EachValidator
       TYPES = %w(timeseries groupBy topN)
       def validate_each(record, attribute, value)
@@ -133,6 +143,16 @@ module Druid
       @postAggregations ||= []
     end
 
+    def postAggregations=(value)
+      if value.is_a?(Array)
+        @postAggregations = value.map do |x|
+          PostAggregation.new(x)
+        end
+      else
+        @postAggregation = value
+      end
+    end
+
     class FilterValidator < ActiveModel::EachValidator
       TYPES = %w(timeseries search groupBy select topN)
       def validate_each(record, attribute, value)
@@ -150,8 +170,24 @@ module Druid
     attr_accessor :filter
     validates :filter, filter: true
 
+    def filter=(value)
+      if value.is_a?(Hash)
+        @filter = Filter.new(value)
+      else
+        @filter = value
+      end
+    end
+
     # groupBy
     attr_accessor :having
+
+    def having=(value)
+      if value.is_a?(Hash)
+        @having = Having.new(value)
+      else
+        @having = value
+      end
+    end
 
     # groupBy
     attr_accessor :limitSpec
@@ -192,11 +228,19 @@ module Druid
     # topN
     attr_accessor :threshold
 
-    attr_reader :context
+    attr_accessor :context
+
+    def context=(value)
+      if value.is_a?(Hash)
+        @context = Context.new(value)
+      else
+        @context = value
+      end
+    end
 
     def initialize(attributes = {})
       super
-      @context = Context.new
+      @context ||= Context.new
     end
 
     def as_json(options = {})
