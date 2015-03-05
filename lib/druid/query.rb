@@ -2,261 +2,402 @@ require 'time'
 require 'iso8601'
 
 require 'active_support/all'
+require 'active_model'
 
-require 'druid/filter'
-require 'druid/having'
+require 'druid/granularity'
+require 'druid/aggregation'
 require 'druid/post_aggregation'
+require 'druid/filter'
+require 'druid/context'
+require 'druid/having'
 
 module Druid
-  class Query < ::Hash
-    include Serializable
+  class Query
+    include ActiveModel::Model
 
-    attr_reader :source # needed for console magic
+    attr_accessor :queryType
+    validates :queryType, inclusion: { in: %w(timeseries search timeBoundary groupBy segmentMetadata select topN dataSourceMetadata) }
 
-    def self.new(source = nil)
-      query = self.allocate
-      query.send(:initialize, source)
-      query
-    end
+    attr_accessor :dataSource
+    validates :dataSource, presence: true
 
-    def initialize(source = nil)
-      @source = source
-      granularity(:all)
-      interval(Time.now.utc.beginning_of_day)
-    end
-
-    def interval(from, to = Time.now)
-      intervals([[from, to]])
-    end
-
-    def use_cache(use=true)
-      self[:useCache] = use
-    end
-
-
-    def intervals(is)
-      self[:intervals] = is.map do |from, to|
-        from = from.respond_to?(:iso8601) ? from.iso8601 : ISO8601::DateTime.new(from).to_s
-        to = to.respond_to?(:iso8601) ? to.iso8601 : ISO8601::DateTime.new(to).to_s
-        "#{from}/#{to}"
+    class IntervalsValidator < ActiveModel::EachValidator
+      def validate_each(record, attribute, value)
+        record.errors.add(attribute, 'must be a list with at least one interval') if !value.is_a?(Array) || value.blank?
+        value.each do |interval|
+          parts = interval.to_s.split('/')
+          record.errors.add(attribute, 'must consist of two ISO8601 dates seperated by /') unless parts.length == 2
+          parts = parts.map do |ts|
+            ISO8601::DateTime.new(ts) rescue nil
+          end
+          record.errors.add(attribute, 'must consist of valid ISO8601 dates') unless parts.all?
+          record.errors.add(attribute, 'first date needs to be < second date') unless parts.first.to_time < parts.last.to_time
+        end
       end
-      self
     end
 
-    def granularity(gran, time_zone = "UTC")
-      gran = gran.to_s
-      if %w(all none minute fifteen_minute thirty_minute hour day).include?(gran)
-        self[:granularity] = gran
+    attr_accessor :intervals
+    validates :intervals, intervals: true
+
+    class GranularityValidator < ActiveModel::EachValidator
+      TYPES = %w(timeseries search groupBy select topN)
+      SIMPLE = %w(all none minute fifteen_minute thirty_minute hour day)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.queryType)
+          if value.is_a?(String)
+            record.errors.add(attribute, "must be one of #{SIMPLE.inspect}") unless SIMPLE.include?(value)
+          elsif value.is_a?(Granularity)
+            value.valid? # trigger validation
+            value.errors.each do |error|
+              record.errors.add(attribute, error)
+            end
+          else
+            record.errors.add(attribute, "invalid type or class: #{value.inspect}")
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value
+        end
+      end
+    end
+
+    attr_accessor :granularity
+    validates :granularity, granularity: true
+
+    def granularity=(value)
+      if value.is_a?(String)
+        @granularity = value
+      elsif value.is_a?(Hash)
+        @granularity = Granularity.new(value)
       else
-        self[:granularity] = {
-          type: 'period',
-          period: gran,
-          timeZone: time_zone
-        }
+        @granularity = value
       end
-      self
     end
 
-    ## query types
-    def metadata
-      query_type(:segmentMetadata)
-      self.delete :granularity
-      self
+    class DimensionsValidator < ActiveModel::EachValidator
+      TYPES = %w(groupBy select)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.queryType)
+          record.errors.add(attribute, 'must be a list with at least one dimension') if !value.is_a?(Array) || value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value
+        end
+      end
     end
 
+    attr_accessor :dimensions
+    validates :dimensions, dimensions: true
 
-    def search(what = "",dimensions = [], limit = nil)
-      query_type(:search)
-      self[:searchDimensions] = dimensions unless dimensions.empty?
-      self[:limit] = limit if  limit
-      # for now we always sort lexicographic
-      self[:sort] = {
-        type: "lexicographic"
-      }
-      self[:query] = {
-        type: "insensitive_contains",
-        value: what
-      }
-      self
+    class AggregationsValidator < ActiveModel::EachValidator
+      TYPES = %w(timeseries groupBy topN)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.queryType)
+          value.each(&:valid?) # trigger validation
+          value.each do |avalue|
+            avalue.errors.each do |error|
+              record.errors.add(attribute, error)
+            end
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value
+        end
+      end
     end
 
-    def search?
-      self[:queryType] == :search
+    attr_reader :aggregations
+    validates :aggregations, aggregations: true
+
+    def aggregations
+      @aggregations ||= []
     end
 
-    def query_type(type)
-      self[:queryType] = type
-      self
+    class PostaggregationsValidator < ActiveModel::EachValidator
+      TYPES = %w(timeseries groupBy topN)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.queryType)
+          value.each(&:valid?) # trigger validation
+          value.each do |avalue|
+            avalue.errors.each do |error|
+              record.errors.add(attribute, error)
+            end
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value
+        end
+      end
     end
 
-    def data_source(source)
-      self[:dataSource] = source.split('/').last
-      self
+    attr_accessor :postAggregations
+    validates :postAggregations, postaggregations: true
+
+    def postAggregations
+      @postAggregations ||= []
     end
 
-    def group_by(*dimensions)
-      query_type(:groupBy)
-      self[:dimensions] = dimensions.flatten
-      self
+    class FilterValidator < ActiveModel::EachValidator
+      TYPES = %w(timeseries search groupBy select topN)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.queryType)
+          value.valid? # trigger validation
+          value.errors.each do |error|
+            record.errors.add(attribute, error)
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value
+        end
+      end
     end
 
-    def topn(dimension, metric, threshold)
-      query_type(:topN)
-      self[:dimension] = dimension
-      self[:metric] = metric
-      self[:threshold] = threshold
-      self
+    attr_accessor :filter
+    validates :filter, filter: true
+
+    # groupBy
+    attr_accessor :having
+
+    # groupBy
+    attr_accessor :limitSpec
+
+    # search
+    attr_accessor :limit
+
+    # search
+    attr_accessor :searchDimensions
+
+    # search
+    attr_accessor :query
+
+    # search
+    attr_accessor :sort
+
+    # timeBoundary
+    attr_accessor :bound
+
+    # segementMetadata
+    attr_accessor :toInclude
+
+    # segementMetadata
+    attr_accessor :merge
+
+    # select
+    attr_accessor :metrics
+
+    # select
+    attr_accessor :pagingSpec
+
+    # topN
+    attr_accessor :dimension
+
+    # topN
+    attr_accessor :metric
+
+    # topN
+    attr_accessor :threshold
+
+    attr_reader :context
+
+    def initialize(attributes = {})
+      super
+      @context = Context.new
     end
 
-    def time_series
-      query_type(:timeseries)
-      self
+    def as_json(options = {})
+      super(options.merge(except: %w(errors validation_context)))
     end
 
-    [:long_sum, :double_sum, :count, :min, :max, :hyper_unique].each do |method_name|
-      aggregation_type = method_name.to_s.camelize(:lower)
-      define_method method_name do |*metrics|
-        metrics.flatten.each do |metric|
-          aggregate(aggregation_type, metric)
+    class Builder
+
+      attr_reader :query
+
+      def initialize
+        @query = Query.new
+        query_type(:timeseries)
+        interval(Time.now.utc.beginning_of_day)
+        granularity(:all)
+      end
+
+      def query_type(type)
+        @query.queryType = type
+        self
+      end
+
+      def data_source(source)
+        @query.dataSource = source.split('/').last
+        self
+      end
+
+      def interval(from, to = Time.now)
+        intervals([[from, to]])
+      end
+
+      def intervals(is)
+        @query.intervals = is.map do |from, to|
+          from = from.respond_to?(:iso8601) ? from.iso8601 : ISO8601::DateTime.new(from).to_s
+          to = to.respond_to?(:iso8601) ? to.iso8601 : ISO8601::DateTime.new(to).to_s
+          "#{from}/#{to}"
         end
         self
       end
-    end
 
-    def cardinality(metric, dimensions, by_row = true)
-      aggregate(:cardinality, metric,
-        field_names: dimensions,
-        by_row: by_row
-      )
-    end
-
-    def js_aggregation(metric, columns, functions)
-      aggregate(:javascript, metric,
-        field_names: columns,
-        fn_aggregate: functions[:aggregate],
-        fn_combine: functions[:combine],
-        fn_reset: functions[:reset]
-      )
-    end
-
-    def aggregate(agg_type, metric, options = {})
-      @properties[:aggregations] ||= []
-
-      unless contains_aggregation?(metric)
-        @properties[:aggregations] << build_aggregation(agg_type, metric, options)
+      def last(duration)
+        interval(Time.now - duration)
       end
 
-      self
-    end
-
-    def build_aggregation(agg_type, metric, options = {})
-      options = {
-        type: to_druid_notation(agg_type),
-        name: metric.to_s
-      }.merge(
-        Hash[options.map { |k, v| [to_druid_notation(k).to_sym, v] }]
-      )
-
-      options[:fieldName] ||= metric.to_s if !options[:fieldNames] && agg_type != :filtered
-      options
-    end
-
-    alias_method :sum, :long_sum
-
-    def cardinality(metric, dimensions, by_row = false)
-      aggregate(:cardinality, metric,
-        fieldNames: dimensions,
-        byRow: by_row
-      )
-    end
-
-    def js_aggregation(metric, columns, functions)
-      aggregate(:javascript, metric,
-        fieldNames: columns,
-        fnAggregate: functions[:aggregate],
-        fnCombine: functions[:combine],
-        fnReset: functions[:reset]
-      )
-    end
-
-    def aggregate(type, metric, options = {})
-      self[:aggregations] ||= []
-      return self if self[:aggregations].any?{|agg| agg[:fieldName].to_s == metric.to_s}
-      self[:aggregations] << build_aggregation(type.to_s, metric, options)
-      self
-    end
-
-    def build_aggregation(type, metric, options = {})
-      options[:fieldName] ||= metric.to_s unless options[:fieldNames] || %w(cardinality filtered javascript).include?(type.to_s)
-      { type: type.to_s, name: metric.to_s }.merge(options)
-    end
-
-    ## post aggregations
-
-    def postagg(type = :long_sum, &block)
-      post_agg = PostAggregation.new.instance_exec(&block)
-      self[:postAggregations] ||= []
-      self[:postAggregations] << post_agg
-      # make sure, the required fields are in the query
-      self.method(type).call(post_agg.get_field_names)
-      self
-    end
-
-    ## filters
-
-    def filter(hash = nil, type = :in, &block)
-      filter_from_hash(hash, type) if hash
-      filter_from_block(&block) if block
-      self
-    end
-
-    def filter_from_hash(hash, type = :in)
-      last = nil
-      hash.each do |k, values|
-        filter = FilterDimension.new(k).__send__(type, values)
-        last = last ? last.&(filter) : filter
-      end
-      self[:filter] = self[:filter] ? self[:filter].&(last) : last
-    end
-
-    def filter_from_block(&block)
-      filter = Filter.new.instance_exec(&block)
-      raise "Not a valid filter" unless filter.is_a? FilterParameter
-      self[:filter] = self[:filter] ? self[:filter].&(filter) : filter
-    end
-
-    ## having
-    def having(hash = nil, &block)
-      having_from_hash(hash) if hash
-      having_from_block(&block) if block
-      self
-    end
-
-    def having_from_block(&block)
-      chain_having Having.new.instance_exec(&block)
-    end
-
-    def having_from_hash(h)
-      chain_having HavingClause.from_h(h)
-    end
-
-    def chain_having(having)
-      having = self[:having].chain(having) if self[:having]
-      self[:having] = having
-      self
-    end
-
-    ## limit/sort
-
-    def limit(limit, columns)
-      self[:limitSpec] = {
-        type: :default,
-        limit: limit,
-        columns: columns.map do |dimension, direction|
-          { dimension: dimension, direction: direction }
+      def granularity(gran, time_zone = "UTC")
+        gran = gran.to_s
+        if %w(all none minute fifteen_minute thirty_minute hour day).include?(gran)
+          @query.granularity = gran
+        else
+          @query.granularity = Granularity.new({
+            type: 'period',
+            period: gran,
+            timeZone: time_zone
+          })
         end
-      }
-      self
+        self
+      end
+
+      ## query types
+
+      def metadata
+        query_type(:segmentMetadata)
+        self
+      end
+
+      def timeseries
+        query_type(:timeseries)
+        self
+      end
+
+      def group_by(*dimensions)
+        query_type(:groupBy)
+        @query.dimensions = dimensions.flatten
+        self
+      end
+
+      def topn(dimension, metric, threshold)
+        query_type(:topN)
+        @query.dimension = dimension
+        @query.metric = metric
+        @query.threshold = threshold
+        self
+      end
+
+      def search(what = "", dimensions = [], limit = nil)
+        query_type(:search)
+        @query.searchDimensions = dimensions unless dimensions.empty?
+        @query.limit = limit if limit
+        # for now we always sort lexicographic
+        @query.sort = { type: 'lexicographic' }
+        @query.query = {
+          type: "insensitive_contains",
+          value: what
+        }
+        self
+      end
+
+      ### aggregations
+
+      [:count, :long_sum, :double_sum, :min, :max, :hyper_unique].each do |method_name|
+        define_method method_name do |*metrics|
+          metrics.flatten.compact.each do |metric|
+            next if @query.aggregations.any? { |a| a.name == metric }
+            @query.aggregations << Aggregation.new({
+              type: method_name.to_s.camelize(:lower),
+              name: metric,
+              fieldName: metric,
+            })
+          end
+          self
+        end
+      end
+
+      alias_method :sum, :long_sum
+
+      def cardinality(metric, dimensions, by_row = false)
+        @query.aggregations << Aggregation.new({
+          type: 'cardinality',
+          name: metric,
+          fieldNames: dimensions,
+          byRow: by_row,
+        })
+      end
+
+      def js_aggregation(metric, columns, functions)
+        @query.aggregations << Aggregation.new({
+          type: 'javascript',
+          name: metric,
+          fieldNames: columns,
+          fnAggregate: functions[:aggregate],
+          fnCombine: functions[:combine],
+          fnReset: functions[:reset],
+        })
+      end
+
+      ## post aggregations
+
+      def postagg(type = :long_sum, &block)
+        post_agg = PostAggregation.new.instance_exec(&block)
+        @query.postAggregations << post_agg
+        # make sure, the required fields are in the query
+        self.method(type).call(post_agg.field_names)
+        self
+      end
+
+      ## filters
+
+      def filter(hash = nil, type = :in, &block)
+        filter_from_hash(hash, type) if hash
+        filter_from_block(&block) if block
+        self
+      end
+
+      def filter_from_hash(hash, type = :in)
+        last = nil
+        hash.each do |k, values|
+          filter = DimensionFilter.new(dimension: k).__send__(type, values)
+          last = last ? last.&(filter) : filter
+        end
+        @query.filter = @query.filter ? @query.filter.&(last) : last
+      end
+
+      def filter_from_block(&block)
+        filter = Filter.new.instance_exec(&block)
+        @query.filter = @query.filter ? @query.filter.&(filter) : filter
+      end
+
+      ## having
+
+      def having(hash = nil, &block)
+        having_from_hash(hash) if hash
+        having_from_block(&block) if block
+        self
+      end
+
+      def having_from_block(&block)
+        chain_having(Having.new.instance_exec(&block))
+      end
+
+      def having_from_hash(h)
+        chain_having(HavingClause.new(h))
+      end
+
+      def chain_having(having)
+        having = @query.having.chain(having) if @query.having
+        @query.having = having
+        self
+      end
+
+      ### limit/sort
+
+      def limit(limit, columns)
+        @query.limitSpec = {
+          type: :default,
+          limit: limit,
+          columns: columns.map do |dimension, direction|
+            { dimension: dimension, direction: direction }
+          end
+        }
+        self
+      end
     end
 
     private

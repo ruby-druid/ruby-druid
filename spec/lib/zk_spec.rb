@@ -47,30 +47,15 @@ module ZK
     def get(path)
       case path
       when '/disco/a/b1'
-        [{
-          :address => 'b1_address',
-          :port => 80
-        }.to_json]
+        [{ :address => 'b1_address', :port => 80 }.to_json]
       when '/disco/a/m1'
-        [{
-          :address => 'm1_address',
-          :port => 81
-        }.to_json]
+        [{ :address => 'm1_address', :port => 81 }.to_json]
       when '/disco/b/b2'
-        [{
-          :address => 'b2_address',
-          :port => 90
-        }.to_json]
+        [{ :address => 'b2_address', :port => 90 }.to_json]
       when '/disco/b/m2'
-        [{
-          :address => 'm2_address',
-          :port => 85
-        }.to_json]
+        [{ :address => 'm2_address', :port => 85 }.to_json]
       when '/disco/a/b3'
-        [{
-          :address => 'b3_address',
-          :port => 83
-        }.to_json]
+        [{ :address => 'b3_address', :port => 83 }.to_json]
       else
         throw "no mock code for #{path}"
       end
@@ -110,21 +95,21 @@ describe Druid::ZK do
       host = uri_match[1]
       port = uri_match[2].to_i
 
-      calls.push [host, port]
+      calls.push([host, port])
 
       case host
       when 'b1'
-        RestClientResponseMock.new(200, ['s1','s2'].to_json)
+        RestClientResponseMock.new(200, ['s1', 's2'].to_json)
       when 'b2'
-        RestClientResponseMock.new(200, ['s3','s4'].to_json)
+        RestClientResponseMock.new(200, ['s3', 's4'].to_json)
       when 'b3'
-        RestClientResponseMock.new(200, ['s5','s6'].to_json)
+        RestClientResponseMock.new(200, ['s5', 's6'].to_json)
       else
         RestClientResponseMock.new(404, nil)
       end
     end
 
-    zk = Druid::ZK.new 'test-uri', :discovery_path => '/disco'
+    zk = Druid::ZK.new('test-uri', :discovery_path => '/disco')
 
     expect(calls).to eq([
       ['b1', 80],
@@ -174,12 +159,12 @@ describe Druid::ZK do
     expect(calls).to eq([['b3', 83]])
     expect(zk.services).to eq(['a', 'b'])
     expect(zk.data_sources).to eq({
-      "a/s1" => "http://b1_address:80/druid/v2/",
-      "a/s2" => "http://b1_address:80/druid/v2/",
-      "b/s3" => "http://b2_address:90/druid/v2/",
-      "b/s4" => "http://b2_address:90/druid/v2/",
-      "a/s5" => "http://b3_address:83/druid/v2/",
-      "a/s6" => "http://b3_address:83/druid/v2/"
+      'a/s1' => 'http://b1_address:80/druid/v2/',
+      'a/s2' => 'http://b1_address:80/druid/v2/',
+      'b/s3' => 'http://b2_address:90/druid/v2/',
+      'b/s4' => 'http://b2_address:90/druid/v2/',
+      'a/s5' => 'http://b3_address:83/druid/v2/',
+      'a/s6' => 'http://b3_address:83/druid/v2/'
     })
     expect(mock.unregistrations).to eq(['/disco/a'])
     # unregister it

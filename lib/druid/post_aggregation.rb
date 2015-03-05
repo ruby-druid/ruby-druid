@@ -1,16 +1,116 @@
 module Druid
-  class PostAggregation < BasicObject
-    include Serializable
+  class PostAggregation
+    include ActiveModel::Model
+
+    attr_accessor :type
+    validates :type, inclusion: { in: %w(arithmetic fieldAccess constant javascript hyperUniqueCardinality) }
+
+    class NameValidator < ActiveModel::EachValidator
+      TYPES = %w(arithmetic constant javascript)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :name
+    validates :name, name: true
+
+    class FnValidator < ActiveModel::EachValidator
+      TYPES = %w(arithmetic)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'must be a valid arithmetic operation') unless %w(+ - * /).include?(value)
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :fn
+    validates :fn, fn: true
+
+    class FieldsValidator < ActiveModel::EachValidator
+      TYPES = %w(arithmetic)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          value.each(&:valid?) # trigger validation
+          value.each do |fvalue|
+            fvalue.errors.each do |error|
+              record.errors.add(attribute, error)
+            end
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :fields
+    validates :fields, fields: true
+
+    def fields=(value)
+      @fields = [value].flatten.compact.map do |aggregation|
+        PostAggregation.new(aggregation)
+      end
+    end
+
+    class FieldnameValidator < ActiveModel::EachValidator
+      TYPES = %w(fieldAccess hyperUniqueCardinality)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :fieldName
+    validates :fieldName, fieldname: true
+
+    class ValueValidator < ActiveModel::EachValidator
+      TYPES = %w(constant)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'must be numeric') if !value.is_a?(Numeric)
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :value
+    validates :value, value: true
+
+    class FunctionValidator < ActiveModel::EachValidator
+      TYPES = %w(javascript)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :function
+    validates :function, function: true
+
+    attr_reader :fieldNames
 
     def method_missing(name, *args)
       if args.empty?
-        PostAggregationField.new(name)
+        PostAggregationField.new(name: name)
       end
     end
 
     def js(*args)
       if args.empty?
-        PostAggregationField.new(:js)
+        PostAggregationField.new(name: :js)
       else
         PostAggregationJavascript.new(args.first)
       end
@@ -35,16 +135,17 @@ module Druid
     end
   end
 
-  class PostAggregationOperation
+  class PostAggregationOperation < PostAggregation
     include PostAggregationOperators
-    include Serializable
-
-    attr_reader :left, :operator, :right, :name
 
     def initialize(left, operator, right)
-      @left = left.is_a?(Numeric) ? PostAggregationConstant.new(left) : left
-      @operator = operator
-      @right = right.is_a?(Numeric) ? PostAggregationConstant.new(right) : right
+      super()
+      @type = 'arithmetic'
+      @fn = operator
+      @fields = [
+        left.is_a?(Numeric) ? PostAggregationConstant.new(value: left) : left,
+        right.is_a?(Numeric) ? PostAggregationConstant.new(value: right) : right,
+      ]
     end
 
     def as(field)
@@ -52,81 +153,55 @@ module Druid
       self
     end
 
-    def get_field_names
-      field_names = left.get_field_names + right.get_field_names
-      field_names.flatten.compact.uniq
-    end
-
-    def to_h
-      hash = { type: "arithmetic", fn: @operator, fields: [@left.to_h, @right.to_h] }
-      hash[:name] = @name if @name
-      hash
+    def field_names
+      fields.map(&:field_names).flatten.compact.uniq
     end
   end
 
-  class PostAggregationField
+  class PostAggregationField < PostAggregation
     include PostAggregationOperators
-    include Serializable
 
-    attr_reader :name
-
-    def initialize(name)
-      @name = name
+    def initialize(attributes = {})
+      super
+      @type = 'fieldAccess'
+      @fieldName = name
     end
 
-    def get_field_names
-      [@name]
-    end
-
-    def to_h
-      { type: "fieldAccess", name: @name, fieldName: @name }
+    def field_names
+      [@fieldName]
     end
   end
 
-  class PostAggregationConstant
+  class PostAggregationConstant < PostAggregation
     include PostAggregationOperators
-    include Serializable
 
-    attr_reader :value
-
-    def initialize(value)
-      @value = value
+    def initialize(attributes = {})
+      super
+      @type = 'constant'
     end
 
-    def get_field_names
+    def field_names
       []
     end
-
-    def to_h
-      { type: "constant", value: @value }
-    end
   end
 
-  class PostAggregationJavascript
+  class PostAggregationJavascript < PostAggregation
     include PostAggregationOperators
-    include Serializable
 
     def initialize(function)
-      @field_names = extract_fields(function)
+      super()
+      @type = 'javascript'
+      @fieldNames = extract_fields(function)
       @function = function
     end
 
-    def get_field_names
-      @field_names
+    def field_names
+      @fieldNames
     end
 
     def as(field)
       @name = field.name.to_s
       self
-    end
-
-    def to_h
-      {
-        type: "javascript",
-        name: @name,
-        fieldNames: @field_names,
-        function: @function,
-      }
     end
 
     private

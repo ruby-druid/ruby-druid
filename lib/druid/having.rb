@@ -1,18 +1,69 @@
-require 'druid/serializable'
-
 module Druid
   class Having
-    include Serializable
+    include ActiveModel::Model
+
+    attr_accessor :type
+    validates :type, inclusion: { in: %w(and or not greaterThan lessThan equalTo) }
+
+    class HavingsValidator < ActiveModel::EachValidator
+      TYPES = %w(and or)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.queryType)
+          value.each(&:valid?) # trigger validation
+          value.each do |avalue|
+            avalue.errors.each do |error|
+              record.errors.add(attribute, error)
+            end
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value
+        end
+      end
+    end
+
+    attr_accessor :havingSpecs
+    validates :havingSpecs, havings: true
+
+    def havingSpecs
+      @havingSpecs ||= []
+    end
+
+    class HavingValidator < ActiveModel::EachValidator
+      TYPES = %w(not)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :havingSpec
+    validates :havingSpec, having: true
+
+    class AggregationValidator < ActiveModel::EachValidator
+      TYPES = %w(greaterThan lessThan equalTo)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :aggregation
+    validates :aggregation, aggregation: true
+
+    attr_accessor :value
+    validates :value, aggregation: true
 
     def method_missing(name, *args)
       if args.empty?
-        HavingClause.new(name)
+        HavingClause.new(aggregation: name)
       end
     end
-  end
-
-  class HavingFilter
-    include Serializable
 
     def clause?
       is_a?(HavingClause)
@@ -27,32 +78,19 @@ module Druid
       if self.operator? && self.and?
         having = self
       else
-        having = HavingOperator.new('and', true)
-        having.add(self)
+        having = HavingOperator.new(type: 'and')
+        having.havingSpecs << self
       end
-      having.add(other)
+      having.havingSpecs << other
       having
+    end
+
+    def as_json(options = {})
+      super(options.merge(except: %w(errors validation_context)))
     end
   end
 
-  class HavingClause < HavingFilter
-    include Serializable
-
-    def self.from_h(h)
-      self.for h[:metric], h[:operator], h[:value]
-    end
-
-    def self.for(metric, operator, value)
-      h = new(metric)
-      # TODO should check the operator
-      h.__send__(operator, value)
-      h
-    end
-
-    def initialize(metric)
-      @metric = metric
-    end
-
+  class HavingClause < Having
     def &(other)
       create_operator('and', other)
     end
@@ -85,20 +123,16 @@ module Druid
       set_clause('greaterThan', value)
     end
 
-    def to_h
-      {
-        :type => @type,
-        :aggregation => @metric,
-        :value => @value
-      }
-    end
-
     private
 
     def create_operator(type, other = nil)
-      operator = HavingOperator.new(type, !other.nil?)
-      operator.add(self)
-      operator.add(other) if other
+      operator = HavingOperator.new(type: type)
+      if type.to_s == 'not'
+        operator.havingSpec = self
+      else
+        operator.havingSpecs << self
+        operator.havingSpecs << other if other
+      end
       operator
     end
 
@@ -109,13 +143,9 @@ module Druid
     end
   end
 
-  class HavingOperator < HavingFilter
-    include Serializable
-
-    def initialize(type, takes_many)
-      @type = type
-      @takes_many = takes_many
-      @elements = []
+  class HavingOperator < Having
+    def and?
+      @type == 'and'
     end
 
     def and?
@@ -138,24 +168,10 @@ module Druid
       if @type == 'not'
         @elements.first
       else
-        operator = HavingOperator.new('not', false)
-        operator.add(self)
+        operator = HavingOperator.new(type: 'not')
+        operator.havingSpec = self
         operator
       end
-    end
-
-    def to_h
-      hash = {
-        :type => @type,
-      }
-
-      if @takes_many
-        hash[:havingSpecs] = @elements
-      else
-        hash[:havingSpec] = @elements.first
-      end
-
-      hash
     end
 
     private
@@ -164,10 +180,10 @@ module Druid
       if @type == type
         operator = self
       else
-        operator = HavingOperator.new(type, true)
-        operator.add(self)
+        operator = HavingOperator.new(type: type)
+        operator.havingSpecs << self
       end
-      operator.add(other)
+      operator.havingSpecs << other
       operator
     end
   end

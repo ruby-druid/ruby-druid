@@ -6,30 +6,31 @@ module Druid
     attr_reader :name, :uri, :metrics, :dimensions
 
     def initialize(name, uri)
-      @name = name
-      @uri = uri
-    end
-
-    def uri
-      @uri = URI(@uri) if @uri.is_a?(String)
-      @uri
+      @name = name.split('/').last
+      if uri.is_a?(String)
+        @uri = URI(uri)
+      else
+        @uri = uri
+      end
     end
 
     def metadata
-      return @metadata unless @metadata.nil?
+      @metadata ||= metadata!
+    end
 
-      meta_path = "#{uri.path}datasources/#{name.split('/').last}"
+    def metadata!
+      meta_path = "#{@uri.path}datasources/#{name}"
       req = Net::HTTP::Get.new(meta_path)
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
         http.read_timeout = 60_000 # ms
         http.request(req)
       end
 
-      if response.code != "200"
+      if response.code != '200'
         raise "Request failed: #{response.code}: #{response.body}"
       end
 
-      @metadata = MultiJson.load(response.body)
+      MultiJson.load(response.body)
     end
 
     def metrics
@@ -40,10 +41,10 @@ module Druid
       @dimensions ||= metadata['dimensions']
     end
 
-    def send(query)
-      query.data_source(name)
+    def query(query)
+      query.dataSource = name
 
-      req = Net::HTTP::Post.new(uri.path, {'Content-Type' => 'application/json'})
+      req = Net::HTTP::Post.new(uri.path, { 'Content-Type' => 'application/json' })
       req.body = query.to_json
 
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
@@ -51,23 +52,17 @@ module Druid
         http.request(req)
       end
 
-      if response.code != "200"
+      if response.code != '200'
         # ignore GroupBy cache issues and try againg without cached results
-        if query[:useCache] != false && response.code == "500" && response.body =~ /Cannot have a null result!/
-          query.use_cache(false)
-          return self.send(query)
+        if query.context.useCache != false && response.code == "500" && response.body =~ /Cannot have a null result!/
+          query.context.useCache = false
+          return self.query(query)
         end
 
         raise "Request failed: #{response.code}: #{response.body}"
       end
 
-      MultiJson.load(response.body).map do |row|
-        ResponseRow.new(row)
-      end
-    end
-
-    def query
-      Query.new(self)
+      MultiJson.load(response.body)
     end
 
   end

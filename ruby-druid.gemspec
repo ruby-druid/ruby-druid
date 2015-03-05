@@ -16,6 +16,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activesupport"
+  spec.add_dependency "activemodel"
   spec.add_dependency "iso8601"
   spec.add_dependency "multi_json"
   spec.add_dependency "rest-client"
