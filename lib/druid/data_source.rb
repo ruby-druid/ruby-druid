@@ -48,7 +48,7 @@ module Druid
       req.body = query.to_json
 
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
-        http.read_timeout = 60_000 # ms
+        http.read_timeout = nil # we wait until druid is finished
         http.request(req)
       end
 
@@ -59,10 +59,21 @@ module Druid
           return self.query(query)
         end
 
-        raise "Request failed: #{response.code}: #{response.body}"
+        raise Error.new(response), "request failed"
       end
 
       MultiJson.load(response.body)
+    end
+
+    class Error < StandardError
+      attr_reader :response
+      def initialize(response)
+        @response = response
+      end
+
+      def message
+        MultiJson.load(response.body)["error"]
+      end
     end
 
   end
