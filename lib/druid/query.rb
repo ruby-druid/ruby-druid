@@ -156,7 +156,7 @@ module Druid
     class FilterValidator < ActiveModel::EachValidator
       TYPES = %w(timeseries search groupBy select topN)
       def validate_each(record, attribute, value)
-        if TYPES.include?(record.queryType)
+        if value && TYPES.include?(record.queryType)
           value.valid? # trigger validation
           value.errors.each do |error|
             record.errors.add(attribute, error)
