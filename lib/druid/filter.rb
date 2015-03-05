@@ -1,269 +1,295 @@
 module Druid
   class Filter
-    (instance_methods + private_instance_methods).each do |method|
-      unless method.to_s =~ /^(__|instance_eval|instance_exec|initialize|object_id|raise|puts|inspect|send)/ || method.to_s =~ /\?/
-        undef_method method
+    include ActiveModel::Model
+
+    attr_accessor :type
+    validates :type, inclusion: { in: %w(selector regex and or not javascript) }
+
+    class DimensionValidator < ActiveModel::EachValidator
+      TYPES = %w(selector regex javascript)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
       end
     end
 
-    def method_missing(method_id, *args)
-      FilterDimension.new(method_id)
-    end
-  end
+    attr_accessor :dimension
+    validates :dimension, dimension: true
 
-  class FilterParameter
-    (instance_methods + private_instance_methods).each do |method|
-      unless method.to_s =~ /^(__|instance_eval|instance_exec|initialize|object_id|raise|puts|inspect|class|send)/ || method.to_s =~ /\?/
-        undef_method method
+    class ValueValidator < ActiveModel::EachValidator
+      TYPES = %w(selector)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
       end
     end
 
-    def to_s
-      to_hash.to_s
+    attr_accessor :value
+    validates :value, value: true
+
+    class PatternValidator < ActiveModel::EachValidator
+      TYPES = %w(regex)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
     end
 
-    def as_json(*a)
-      to_hash
+    attr_accessor :pattern
+    validates :pattern, pattern: true
+
+    class FieldsValidator < ActiveModel::EachValidator
+      TYPES = %w(and or)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          value.each(&:valid?) # trigger validation
+          value.each do |fvalue|
+            fvalue.errors.each do |error|
+              record.errors.add(attribute, error)
+            end
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
     end
 
-    def to_json(*a)
-      to_hash.to_json(*a)
+    attr_accessor :fields
+    validates :fields, fields: true
+
+    class FieldValidator < ActiveModel::EachValidator
+      TYPES = %w(not)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          value.valid? # trigger validation
+          value.errors.each do |error|
+            record.errors.add(attribute, error)
+          end
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :field
+    validates :field, field: true
+
+    class FunctionValidator < ActiveModel::EachValidator
+      TYPES = %w(javascript)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :function
+    validates :function, function: true
+
+    def method_missing(name, *args)
+      DimensionFilter.new(dimension: name)
     end
   end
 
-  class FilterDimension < FilterParameter
-    def initialize(name)
-      @name = name
-      @value = nil
-      @regexp = nil
+  module BooleanOperators
+    def &(other)
+      BooleanFilter.new({
+        type: 'and',
+        fields: [self, other],
+      })
     end
+
+    def |(other)
+      BooleanFilter.new({
+        type: 'or',
+        fields: [self, other],
+      })
+    end
+
+    def !()
+      BooleanFilter.new({
+        type: 'not',
+        field: self,
+      })
+    end
+  end
+
+  class DimensionFilter < Filter
+    include BooleanOperators
 
     def in_rec(bounds)
-      RecFilter.new(@name, bounds)
-    end 
+      RecFilter.new(@dimension, bounds)
+    end
 
     def in_circ(bounds)
-      CircFilter.new(@name, bounds)
-    end 
+      CircFilter.new(@dimension, bounds)
+    end
 
     def eq(value)
-      return self.in(value) if value.is_a? Array
-      return self.regexp(value) if value.is_a? Regexp
-      @value = value
+      case value
+      when ::Array
+        self.in(value)
+      when ::Regexp
+        self.regexp(value)
+      else
+        @type = :selector
+        @value = value
+      end
       self
     end
 
     alias :'==' :eq
 
     def neq(value)
-      return !self.in(value)
+      return !self.eq(value)
     end
 
     alias :'!=' :neq
 
     def in(*args)
-      values = args.flatten
-      filter_multiple(values, 'or', :eq)
+      filter_multiple(args.flatten, 'or', :eq)
     end
 
     def nin(*args)
-      values = args.flatten
-      filter_multiple(values, 'and', :neq)
+      filter_multiple(args.flatten, 'and', :neq)
     end
 
-    def &(other)
-      filter_and = FilterOperator.new('and', true)
-      filter_and.add(self)
-      filter_and.add(other)
-      filter_and
+    def filter_multiple(values, operator, method)
+      ::Kernel.raise 'Values cannot be empty' if values.empty?
+      return self.__send__(method, values[0]) if values.length == 1
+      BooleanFilter.new({
+        type: operator,
+        fields: values.map do |value|
+          DimensionFilter.new(dimension: @dimension).__send__(method, value)
+        end
+      })
     end
 
-    def |(other)
-      filter_or = FilterOperator.new('or', true)
-      filter_or.add(self)
-      filter_or.add(other)
-      filter_or
-    end
-
-    def !()
-      filter_not = FilterOperator.new('not', false)
-      filter_not.add(self)
-      filter_not
-    end
-
-    def >(value)
-      filter_js = FilterJavascript.new_comparison(@name, '>', value)
-      filter_js
-    end
-
-    def <(value)
-      filter_js = FilterJavascript.new_comparison(@name, '<', value)
-      filter_js
-    end
-
-    def >=(value)
-      filter_js = FilterJavascript.new_comparison(@name, '>=', value)
-      filter_js
-    end
-
-    def <=(value)
-      filter_js = FilterJavascript.new_comparison(@name, '<=', value)
-      filter_js
-    end
-
-    def javascript(js)
-      filter_js = FilterJavascript.new(@name, js)
-      filter_js
-    end
+    alias_method :not_in, :nin
 
     def regexp(r)
-      r = Regexp.new(r) unless r.is_a? Regexp
-      @regexp = r.inspect[1...-1] #to_s doesn't work
+      r = ::Regexp.new(r) unless r.is_a?(::Regexp)
+      @pattern = r.inspect[1...-1] #to_s doesn't work
+      @type = 'regex'
       self
     end
 
-    def to_hash
-      raise 'no value assigned' unless @value.nil? ^ @regexp.nil?
-      hash = {
-        :dimension => @name
-      }
-      if @value
-        hash['type'] = 'selector'
-        hash['value'] = @value
-      elsif @regexp
-        hash['type'] = 'regex'
-        hash['pattern'] = @regexp
-      end
-      hash
+    def >(value)
+      JavascriptFilter.new_comparison(@dimension, '>', value)
     end
 
-    private
+    def <(value)
+      JavascriptFilter.new_comparison(@dimension, '<', value)
+    end
 
-    def filter_multiple(values, operator, method)
-      raise 'Values cannot be empty' if values.empty?
-      return self.send(method, values[0]) if values.length == 1
+    def >=(value)
+      JavascriptFilter.new_comparison(@dimension, '>=', value)
+    end
 
-      filter = FilterOperator.new(operator, true)
-      values.each do |value|
-        raise 'Value cannot be a parameter' if value.is_a?(FilterParameter)
-        filter.add(FilterDimension.new(@name).send(method, value))
-      end
-      filter
+    def <=(value)
+      JavascriptFilter.new_comparison(@dimension, '<=', value)
+    end
+
+    def javascript(js)
+      JavascriptFilter.new(@dimension, js)
     end
   end
 
-  class FilterOperator < FilterParameter
-    def initialize(name, takes_many)
-      @name = name
-      @takes_many = takes_many
-      @elements = []
-    end
-
-    def add(element)
-      @elements.push element
-    end
-
+  class BooleanFilter < Filter
     def &(other)
-      if @name == 'and'
-        filter_and = self
+      if @type.to_s == 'and'
+        self.fields << other
+        self
       else
-        filter_and = FilterOperator.new('and', true)
-        filter_and.add(self)
+        BooleanFilter.new({
+          type: 'and',
+          fields: [self, other],
+        })
       end
-      filter_and.add(other)
-      filter_and
     end
 
     def |(other)
-      if @name == 'or'
-        filter_or = self
+      if @type.to_s == 'or'
+        self.fields << other
+        self
       else
-        filter_or = FilterOperator.new('or', true)
-        filter_or.add(self)
+        BooleanFilter.new({
+          type: 'or',
+          fields: [self, other],
+        })
       end
-      filter_or.add(other)
-      filter_or
     end
 
     def !()
-      if @name == 'not'
-        @elements[0]
+      if @type.to_s == 'not'
+        self.field
+        self
       else
-        filter_not = FilterOperator.new('not', false)
-        filter_not.add(self)
-        filter_not
+        BooleanFilter.new({
+          type: 'not',
+          field: self,
+        })
       end
     end
-
-    def to_hash
-      result = {
-        :type => @name
-      }
-      if @takes_many
-        result[:fields] = @elements.map(&:to_hash)
-      else
-        result[:field] = @elements[0].to_hash
-      end
-      result
-    end
   end
-  
-  class RecFilter < FilterDimension
+
+  class RecFilter < Filter
+    include BooleanOperators
 
     def initialize(dimension, bounds)
+      super()
+      @type = 'spatial'
       @dimension = dimension
-      @bounds = bounds
-    end 
-
-    def to_hash
-      {
-      :type => "spatial",
-      :dimension => @dimension,
-      :bound =>{
-        :type => "rectangular",
-        :minCoords => @bounds.first,
-        :maxCoords => @bounds.last
-        }
+      @bound = {
+        type: 'rectangular',
+        minCoords: bounds.first,
+        maxCoords: bounds.last,
       }
     end
   end
 
-  class CircFilter < FilterDimension
+  class CircFilter < Filter
+    include BooleanOperators
 
     def initialize(dimension, bounds)
+      super()
+      @type = 'spatial'
       @dimension = dimension
-      @bounds = bounds
-    end 
-
-    def to_hash
-      {
-      :type => "spatial",
-      :dimension => @dimension,
-      :bound =>{
-        :type => "radius",
-        :coords => @bounds.first,
-        :radius => @bounds.last
-        }
+      @bound = {
+        type: 'radius',
+        coords: bounds.first,
+        radius: bounds.last,
       }
     end
   end
 
-  class FilterJavascript < FilterDimension
-    def initialize(dimension, expression)
+  class JavascriptFilter < Filter
+    include BooleanOperators
+
+    def initialize(dimension, function)
+      super()
+      @type = 'javascript'
       @dimension = dimension
-      @expression = expression
+      @function = function
+    end
+
+    def self.new_expression(dimension, expression)
+      self.new(dimension, "function(#{dimension}) { return(#{expression}); }")
     end
 
     def self.new_comparison(dimension, operator, value)
-      self.new(dimension, "#{dimension} #{operator} #{value.is_a?(String) ? "'#{value}'" : value}")
-    end
-
-    def to_hash
-      {
-        :type => 'javascript',
-        :dimension => @dimension,
-        :function => "function(#{@dimension}) { return(#{@expression}); }"
-      }
+      self.new_expression(dimension, "#{dimension} #{operator} #{value.to_json}")
     end
   end
 end

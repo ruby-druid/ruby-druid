@@ -8,28 +8,36 @@ require 'terminal-table'
 require 'druid'
 
 Ripl::Shell.class_eval do
-  def format_query_result(result, query)
-    include_timestamp = query.properties[:granularity] != 'all'
+  def _result_key(queryType)
+    case queryType
+    when :timeseries
+      "result"
+    when :groupBy
+      "event"
+    end
+  end
 
-    keys = result.empty? ? [] : result.last.keys
-    grouped_result = result.group_by(&:timestamp)
-
+  def _format_query_result(result, query)
+    ap(query.as_json)
+    ap(result)
+    return nil if result.empty?
+    result_key = _result_key(query.queryType)
+    keys = result.last[result_key].keys
+    grouped_result = result.group_by { |x| x['timestamp'] }
     Terminal::Table.new(:headings => keys) do
       grouped_result.each do |timestamp, rows|
-        if include_timestamp
-          add_row :separator unless timestamp == result.first.timestamp
-          add_row [{ :value => timestamp, :colspan => keys.length }]
-          add_row :separator
-        end
-        rows.each {|row| add_row keys.map {|key| row[key] } }
+        add_row(:separator) unless timestamp == result.first['timestamp']
+        add_row([{ :value => timestamp, :colspan => keys.length }])
+        add_row(:separator)
+        rows.each { |row| add_row(keys.map { |key| row[result_key][key] }) }
       end
     end
   end
 
   def format_result(result)
-    if result.is_a?(Druid::Query)
+    if result.is_a?(Druid::Query::Builder)
       start = Time.now.to_f
-      puts format_query_result(result.send, result)
+      puts _format_query_result($source.query(result.query), result.query)
       puts "Response Time: #{(Time.now.to_f - start).round(3)}s"
     else
       ap(result)
@@ -49,8 +57,6 @@ module Druid
 
     def client
       @client ||= Druid::Client.new(@uri, @options)
-      @source ||= @client.data_sources[0]
-      @client
     end
 
     def source
@@ -58,18 +64,19 @@ module Druid
     end
 
     def dimensions
-      source.dimensions
+      source.dimensions.sort
     end
 
     def metrics
-      source.metrics
+      source.metrics.sort
     end
 
     def query
-      client.query(@source)
+      $source = source
+      Query::Builder.new
     end
 
-    def_delegators *[
+    def_delegators(*[
       :query,
       :group_by,
       :sum,
@@ -87,7 +94,7 @@ module Druid
       :hyper_unique,
       :cardinality,
       :js_aggregation,
-    ]
+    ])
 
   end
 end

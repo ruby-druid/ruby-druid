@@ -332,7 +332,7 @@ $ bin/dripl
 | 749034        | 87542         |
 +---------------+---------------+
 
->> long_sum(:actions, :words)[-3.days].granularity(:day).properties
+>> long_sum(:actions, :words)[-3.days].granularity(:day).as_json
 {
       :dataSource => "events",
      :granularity => {

@@ -1,9 +1,6 @@
 language: ruby
+cache: bundler
 rvm:
 - jruby
-- 2.0.0
-- 1.9.3
-script:
-- bundle exec rspec --format documentation
-notifications:
-  email: false
+- 2.1.5
+- 2.2.0
