@@ -103,7 +103,7 @@ module Druid
       end
     end
 
-    attr_reader :aggregations
+    attr_accessor :aggregations
     validates :aggregations, aggregations: true
 
     def aggregations
