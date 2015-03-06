@@ -41,7 +41,7 @@ module Druid
       @dimensions ||= metadata['dimensions']
     end
 
-    def query(query)
+    def post(query)
       query.dataSource = name
 
       req = Net::HTTP::Post.new(uri.path, { 'Content-Type' => 'application/json' })
