@@ -37,7 +37,7 @@ Ripl::Shell.class_eval do
   def format_result(result)
     if result.is_a?(Druid::Query::Builder)
       start = Time.now.to_f
-      puts _format_query_result($source.query(result.query), result.query)
+      puts _format_query_result($source.post(result.query), result.query)
       puts "Response Time: #{(Time.now.to_f - start).round(3)}s"
     else
       ap(result)
