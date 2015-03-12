@@ -58,7 +58,7 @@ module Druid
             end
           end
         else
-          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+          record.errors.add(attribute, "is not supported by type=#{record.type}") unless value.blank?
         end
       end
     end
@@ -66,13 +66,31 @@ module Druid
     attr_accessor :fields
     validates :fields, fields: true
 
+    def fields
+      @fields ||= []
+    end
+
+    def fields=(value)
+      if value.is_a?(Array)
+        @fields = value.map do |x|
+          Filter.new(x)
+        end
+      else
+        @fields = [value]
+      end
+    end
+
     class FieldValidator < ActiveModel::EachValidator
       TYPES = %w(not)
       def validate_each(record, attribute, value)
         if TYPES.include?(record.type)
-          value.valid? # trigger validation
-          value.errors.each do |error|
-            record.errors.add(attribute, error)
+          if value
+            value.valid? # trigger validation
+            value.errors.each do |error|
+              record.errors.add(attribute, error)
+            end
+          else
+            record.errors.add(attribute, "may not be blank")
           end
         else
           record.errors.add(attribute, "is not supported by type=#{record.type}") if value
@@ -82,6 +100,14 @@ module Druid
 
     attr_accessor :field
     validates :field, field: true
+
+    def field=(value)
+      if value.is_a?(Hash)
+        @field = Filter.new(value)
+      else
+        @field = value
+      end
+    end
 
     class FunctionValidator < ActiveModel::EachValidator
       TYPES = %w(javascript)

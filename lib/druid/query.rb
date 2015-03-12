@@ -116,7 +116,7 @@ module Druid
           Aggregation.new(x)
         end
       else
-        @aggregation = value
+        @aggregations = [value]
       end
     end
 
@@ -149,7 +149,7 @@ module Druid
           PostAggregation.new(x)
         end
       else
-        @postAggregation = value
+        @postAggregations = [value]
       end
     end
 
