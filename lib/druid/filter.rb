@@ -97,6 +97,10 @@ module Druid
     attr_accessor :function
     validates :function, function: true
 
+    def as_json(options = {})
+      super(options.merge(except: %w(errors validation_context)))
+    end
+
     def method_missing(name, *args)
       DimensionFilter.new(dimension: name)
     end
@@ -143,7 +147,7 @@ module Druid
       when ::Regexp
         self.regexp(value)
       else
-        @type = :selector
+        @type = 'selector'
         @value = value
       end
       self

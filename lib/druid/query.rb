@@ -259,7 +259,7 @@ module Druid
       end
 
       def query_type(type)
-        @query.queryType = type
+        @query.queryType = type.to_s
         self
       end
 
@@ -363,6 +363,7 @@ module Druid
           fieldNames: dimensions,
           byRow: by_row,
         })
+        self
       end
 
       def js_aggregation(metric, columns, functions)
@@ -374,6 +375,7 @@ module Druid
           fnCombine: functions[:combine],
           fnReset: functions[:reset],
         })
+        self
       end
 
       ## post aggregations
