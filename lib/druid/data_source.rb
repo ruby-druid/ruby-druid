@@ -42,6 +42,8 @@ module Druid
     end
 
     def post(query)
+      query = query.query if query.is_a?(Druid::Query::Builder)
+      query = Query.new(MultiJson.load(query)) if query.is_a?(String)
       query.dataSource = name
 
       req = Net::HTTP::Post.new(uri.path, { 'Content-Type' => 'application/json' })
