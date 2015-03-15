@@ -48,8 +48,8 @@ module Druid
             record.errors.add(attribute, "must be one of #{SIMPLE.inspect}") unless SIMPLE.include?(value)
           elsif value.is_a?(Granularity)
             value.valid? # trigger validation
-            value.errors.each do |error|
-              record.errors.add(attribute, error)
+            value.errors.messages.each do |k, v|
+              record.errors.add(attribute, { k => v })
             end
           else
             record.errors.add(attribute, "invalid type or class: #{value.inspect}")
@@ -93,8 +93,8 @@ module Druid
         if TYPES.include?(record.queryType)
           value.each(&:valid?) # trigger validation
           value.each do |avalue|
-            avalue.errors.each do |error|
-              record.errors.add(attribute, error)
+            avalue.errors.messages.each do |k, v|
+              record.errors.add(attribute, { k => v })
             end
           end
         else
@@ -126,8 +126,8 @@ module Druid
         if TYPES.include?(record.queryType)
           value.each(&:valid?) # trigger validation
           value.each do |avalue|
-            avalue.errors.each do |error|
-              record.errors.add(attribute, error)
+            avalue.errors.messages.each do |msg|
+              record.errors.add(attribute, msg)
             end
           end
         else
@@ -158,8 +158,8 @@ module Druid
       def validate_each(record, attribute, value)
         if value && TYPES.include?(record.queryType)
           value.valid? # trigger validation
-          value.errors.each do |error|
-            record.errors.add(attribute, error)
+          value.errors.messages.each do |k, v|
+            record.errors.add(attribute, { k => v })
           end
         else
           record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value

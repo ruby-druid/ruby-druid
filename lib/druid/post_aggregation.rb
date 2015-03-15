@@ -8,9 +8,7 @@ module Druid
     class NameValidator < ActiveModel::EachValidator
       TYPES = %w(arithmetic constant javascript)
       def validate_each(record, attribute, value)
-        if TYPES.include?(record.type)
-          record.errors.add(attribute, 'may not be blank') if value.blank?
-        else
+        if !TYPES.include?(record.type)
           record.errors.add(attribute, "is not supported by type=#{record.type}") if value
         end
       end
@@ -39,8 +37,8 @@ module Druid
         if TYPES.include?(record.type)
           value.each(&:valid?) # trigger validation
           value.each do |fvalue|
-            fvalue.errors.each do |error|
-              record.errors.add(attribute, error)
+            fvalue.errors.messages.each do |k, v|
+              record.errors.add(attribute, { k => v })
             end
           end
         else
@@ -104,13 +102,13 @@ module Druid
 
     def method_missing(name, *args)
       if args.empty?
-        PostAggregationField.new(name: name)
+        PostAggregationField.new(fieldName: name)
       end
     end
 
     def js(*args)
       if args.empty?
-        PostAggregationField.new(name: :js)
+        PostAggregationField.new(fieldName: :js)
       else
         PostAggregationJavascript.new(args.first)
       end
@@ -164,7 +162,6 @@ module Druid
     def initialize(attributes = {})
       super
       @type = 'fieldAccess'
-      @fieldName = name
     end
 
     def field_names

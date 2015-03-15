@@ -11,8 +11,8 @@ module Druid
         if TYPES.include?(record.queryType)
           value.each(&:valid?) # trigger validation
           value.each do |avalue|
-            avalue.errors.each do |error|
-              record.errors.add(attribute, error)
+            avalue.errors.messages.each do |k, v|
+              record.errors.add(attribute, { k => v })
             end
           end
         else

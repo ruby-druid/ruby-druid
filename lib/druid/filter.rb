@@ -53,8 +53,8 @@ module Druid
         if TYPES.include?(record.type)
           value.each(&:valid?) # trigger validation
           value.each do |fvalue|
-            fvalue.errors.each do |error|
-              record.errors.add(attribute, error)
+            fvalue.errors.messages.each do |k, v|
+              record.errors.add(attribute, { k => v })
             end
           end
         else
@@ -86,8 +86,8 @@ module Druid
         if TYPES.include?(record.type)
           if value
             value.valid? # trigger validation
-            value.errors.each do |error|
-              record.errors.add(attribute, error)
+            value.errors.messages.each do |k, v|
+              record.errors.add(attribute, { k => v })
             end
           else
             record.errors.add(attribute, "may not be blank")
