@@ -147,7 +147,7 @@ module Druid
     end
 
     def as(field)
-      @name = field.name.to_s
+      @name = field.fieldName.to_s
       self
     end
 
@@ -197,7 +197,7 @@ module Druid
     end
 
     def as(field)
-      @name = field.name.to_s
+      @name = field.fieldName.to_s
       self
     end
 

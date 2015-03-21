@@ -9,7 +9,7 @@ require 'druid'
 
 Ripl::Shell.class_eval do
   def _result_key(queryType)
-    case queryType
+    case queryType.to_sym
     when :timeseries
       "result"
     when :groupBy
