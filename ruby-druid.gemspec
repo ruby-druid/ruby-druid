@@ -2,12 +2,11 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "ruby-druid"
-  spec.version       = "0.1.9"
-  spec.authors       = ["LiquidM, Inc."]
-  spec.email         = ["opensource@liquidm.com"]
-  spec.summary       = %q{Ruby client for metamx druid}
-  spec.description   = %q{Ruby client for metamx druid}
-  spec.homepage      = "https://github.com/liquidm/ruby-druid"
+  spec.version       = "0.2.0.rc2"
+  spec.authors       = `git log --format='%aN' | sort -u`.split($/)
+  spec.summary       = %q{Ruby client for Druid}
+  spec.description   = %q{Ruby client for Druid}
+  spec.homepage      = "https://github.com/ruby-druid/ruby-druid"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
