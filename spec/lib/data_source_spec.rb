@@ -8,7 +8,7 @@ describe Druid::DataSource do
     ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2')
     query = Druid::Query::Builder.new.interval('2013-04-04', '2013-04-04').query
     query.context.queryId = nil
-    expect(ds.query(query)).to be_empty
+    expect(ds.post(query)).to be_empty
   end
 
   it 'raises on request failure' do
@@ -19,7 +19,7 @@ describe Druid::DataSource do
     ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2')
     query = Druid::Query::Builder.new.interval('2013-04-04', '2013-04-04').query
     query.context.queryId = nil
-    expect { ds.query(query) }.to raise_error(RuntimeError, /Request failed: 666: Strange server error/)
+    expect { ds.post(query) }.to raise_error(Druid::DataSource::Error)
   end
 
 end

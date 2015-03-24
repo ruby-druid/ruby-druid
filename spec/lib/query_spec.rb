@@ -39,7 +39,7 @@ describe Druid::Query do
       expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
         "fn"=>"+",
         "fields"=>
-        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
+        [{"type"=>"fieldAccess", "fieldName"=>"a"},
          {"type"=>"constant", "value"=>1}],
         "name"=>"ctr"}])
     end
@@ -49,8 +49,8 @@ describe Druid::Query do
       expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
         "fn"=>"+",
         "fields"=>
-        [{"type"=>"fieldAccess","name"=>"a", "fieldName"=>"a"},
-        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        [{"type"=>"fieldAccess", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "fieldName"=>"b"}],
         "name"=>"ctr"}])
     end
 
@@ -59,8 +59,8 @@ describe Druid::Query do
       expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
         "fn"=>"-",
         "fields"=>
-        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        [{"type"=>"fieldAccess", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "fieldName"=>"b"}],
         "name"=>"ctr"}])
     end
 
@@ -69,8 +69,8 @@ describe Druid::Query do
       expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
         "fn"=>"*",
         "fields"=>
-        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        [{"type"=>"fieldAccess", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "fieldName"=>"b"}],
         "name"=>"ctr"}])
     end
 
@@ -79,8 +79,8 @@ describe Druid::Query do
       expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
         "fn"=>"/",
         "fields"=>
-        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        [{"type"=>"fieldAccess", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "fieldName"=>"b"}],
       "name"=>"ctr"}])
     end
 
@@ -90,8 +90,8 @@ describe Druid::Query do
         "fn"=>"*",
         "fields"=>
         [{"type"=>"arithmetic", "fn"=>"/", "fields"=>
-          [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-           {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}]},
+          [{"type"=>"fieldAccess", "fieldName"=>"a"},
+           {"type"=>"fieldAccess", "fieldName"=>"b"}]},
         {"type"=>"constant", "value"=>1000}],
       "name"=>"ctr"}])
     end
@@ -110,14 +110,14 @@ describe Druid::Query do
       expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq([{"type"=>"arithmetic",
         "fn"=>"/",
         "fields"=>
-        [{"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"},
-        {"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"}],
+        [{"type"=>"fieldAccess", "fieldName"=>"a"},
+        {"type"=>"fieldAccess", "fieldName"=>"b"}],
       "name"=>"ctr"},
       {"type"=>"arithmetic",
         "fn"=>"/",
         "fields"=>
-        [{"type"=>"fieldAccess", "name"=>"b", "fieldName"=>"b"},
-        {"type"=>"fieldAccess", "name"=>"a", "fieldName"=>"a"}],
+        [{"type"=>"fieldAccess", "fieldName"=>"b"},
+        {"type"=>"fieldAccess", "fieldName"=>"a"}],
       "name"=>"rtc"}
       ])
     end

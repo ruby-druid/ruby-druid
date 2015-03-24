@@ -120,6 +120,18 @@ module Druid
       end
     end
 
+    def aggregation_types
+      Set.new(@aggregations.map do |aggregation|
+        aggregation.type
+      end.flatten.compact)
+    end
+
+    def aggregation_names
+      Set.new(@aggregations.map do |aggregation|
+        [aggregation.fieldName] + aggregation.fieldNames
+      end.flatten.compact)
+    end
+
     class PostaggregationsValidator < ActiveModel::EachValidator
       TYPES = %w(timeseries groupBy topN)
       def validate_each(record, attribute, value)
@@ -247,6 +259,10 @@ module Druid
       super(options.merge(except: %w(errors validation_context)))
     end
 
+    def contains_aggregation?(metric)
+      aggregations.any? { |a| a.name.to_s == metric.to_s }
+    end
+
     class Builder
 
       attr_reader :query
@@ -343,12 +359,11 @@ module Druid
       [:count, :long_sum, :double_sum, :min, :max, :hyper_unique].each do |method_name|
         define_method method_name do |*metrics|
           metrics.flatten.compact.each do |metric|
-            next if @query.aggregations.any? { |a| a.name == metric }
             @query.aggregations << Aggregation.new({
               type: method_name.to_s.camelize(:lower),
               name: metric,
               fieldName: metric,
-            })
+            }) unless @query.contains_aggregation?(metric)
           end
           self
         end
@@ -362,7 +377,7 @@ module Druid
           name: metric,
           fieldNames: dimensions,
           byRow: by_row,
-        })
+        }) unless @query.contains_aggregation?(metric)
         self
       end
 
@@ -374,7 +389,7 @@ module Druid
           fnAggregate: functions[:aggregate],
           fnCombine: functions[:combine],
           fnReset: functions[:reset],
-        })
+        }) unless @query.contains_aggregation?(metric)
         self
       end
 
@@ -444,28 +459,6 @@ module Druid
         }
         self
       end
-    end
-
-    private
-
-    def to_druid_notation(string)
-      string.to_s.split('_').
-        each_with_index.map { |v, i| i == 0 ? v : v.capitalize }.
-        join
-    end
-
-    def order_by_column_spec(columns)
-      columns.map do |dimension, direction|
-        {
-          :dimension => dimension,
-          :direction => direction
-        }
-      end
-    end
-
-    def contains_aggregation?(metric)
-      return false if @properties[:aggregations].nil?
-      @properties[:aggregations].index { |aggregation| aggregation[:name] == metric.to_s }
     end
 
   end

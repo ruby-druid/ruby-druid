@@ -73,7 +73,7 @@ module Druid
     def fields=(value)
       if value.is_a?(Array)
         @fields = value.map do |x|
-          Filter.new(x)
+          x.is_a?(Filter) ? x : Filter.new(x)
         end
       else
         @fields = [value]
