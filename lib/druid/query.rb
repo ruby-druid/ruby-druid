@@ -128,7 +128,7 @@ module Druid
 
     def aggregation_names
       Set.new(@aggregations.map do |aggregation|
-        [aggregation.fieldName] + aggregation.fieldNames
+        [aggregation.fieldName] + [aggregation.fieldNames]
       end.flatten.compact)
     end
 
