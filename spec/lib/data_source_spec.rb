@@ -1,8 +1,14 @@
 describe Druid::DataSource do
 
   it 'parses response on 200' do
+    # MRI
     stub_request(:post, "http://www.example.com/druid/v2").
       with(:body => "{\"context\":{\"queryId\":null},\"queryType\":\"timeseries\",\"intervals\":[\"2013-04-04T00:00:00+00:00/2013-04-04T00:00:00+00:00\"],\"granularity\":\"all\",\"dataSource\":\"test\"}",
+        :headers => { 'Accept' => '*/*', 'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3', 'Content-Type' => 'application/json', 'User-Agent' => 'Ruby' }).
+      to_return(:status => 200, :body => '[]', :headers => {})
+    # JRuby ... *sigh
+    stub_request(:post, "http://www.example.com/druid/v2").
+      with(:body => "{\"context\":{\"queryId\":null},\"granularity\":\"all\",\"intervals\":[\"2013-04-04T00:00:00+00:00/2013-04-04T00:00:00+00:00\"],\"queryType\":\"timeseries\",\"dataSource\":\"test\"}",
         :headers => { 'Accept' => '*/*', 'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3', 'Content-Type' => 'application/json', 'User-Agent' => 'Ruby' }).
       to_return(:status => 200, :body => '[]', :headers => {})
     ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2')
@@ -12,8 +18,14 @@ describe Druid::DataSource do
   end
 
   it 'raises on request failure' do
+    # MRI
     stub_request(:post, 'http://www.example.com/druid/v2').
       with(:body => "{\"context\":{\"queryId\":null},\"queryType\":\"timeseries\",\"intervals\":[\"2013-04-04T00:00:00+00:00/2013-04-04T00:00:00+00:00\"],\"granularity\":\"all\",\"dataSource\":\"test\"}",
+        :headers => { 'Accept' => '*/*', 'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3', 'Content-Type' => 'application/json', 'User-Agent' => 'Ruby' }).
+      to_return(:status => 666, :body => 'Strange server error', :headers => {})
+    # JRuby ... *sigh
+    stub_request(:post, 'http://www.example.com/druid/v2').
+      with(:body => "{\"context\":{\"queryId\":null},\"granularity\":\"all\",\"intervals\":[\"2013-04-04T00:00:00+00:00/2013-04-04T00:00:00+00:00\"],\"queryType\":\"timeseries\",\"dataSource\":\"test\"}",
         :headers => { 'Accept' => '*/*', 'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3', 'Content-Type' => 'application/json', 'User-Agent' => 'Ruby' }).
       to_return(:status => 666, :body => 'Strange server error', :headers => {})
     ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2')

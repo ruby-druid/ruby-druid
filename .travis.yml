@@ -3,4 +3,4 @@ cache: bundler
 rvm:
 - jruby
 - 2.1.5
-- 2.2.0
+- 2.2.1
