@@ -58,7 +58,7 @@ module Druid
         # ignore GroupBy cache issues and try again without cached results
         if query.context.useCache != false && response.code == "500" && response.body =~ /Cannot have a null result!/
           query.context.useCache = false
-          return self.query(query)
+          return self.post(query)
         end
 
         raise Error.new(response), "request failed"
