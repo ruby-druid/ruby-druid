@@ -20,7 +20,7 @@ module Druid
 
     def metadata!
       meta_path = "#{@uri.path}datasources/#{name}"
-      req = Net::HTTP::Get.new(meta_path, { "accept-encoding" => "gzip;q=1.0,deflate;q=0.6,identity;q=0.3" })
+      req = Net::HTTP::Get.new(meta_path)
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
         http.read_timeout = 60_000 # ms
         http.request(req)
@@ -46,7 +46,7 @@ module Druid
       query = Query.new(MultiJson.load(query)) if query.is_a?(String)
       query.dataSource = name
 
-      req = Net::HTTP::Post.new(uri.path, { 'Content-Type' => 'application/json', "accept-encoding" => "gzip;q=1.0,deflate;q=0.6,identity;q=0.3" })
+      req = Net::HTTP::Post.new(uri.path, { 'Content-Type' => 'application/json' })
       req.body = query.to_json
 
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
