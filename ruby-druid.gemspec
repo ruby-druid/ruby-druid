@@ -3,7 +3,7 @@
 Gem::Specification.new do |spec|
   spec.name          = "ruby-druid"
   spec.version       = "0.2.0.rc3"
-  spec.authors       = `git log --format='%aN' | sort -u`.split($/)
+  spec.authors       = ["Ruby Druid Community"]
   spec.summary       = %q{Ruby client for Druid}
   spec.description   = %q{Ruby client for Druid}
   spec.homepage      = "https://github.com/ruby-druid/ruby-druid"
