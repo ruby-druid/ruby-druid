@@ -13,30 +13,37 @@ module Druid
     end
 
     def register
+      $log.info("druid.zk register discovery path") if $log
       @zk.on_expired_session { register }
       @zk.register(@discovery_path, only: :child) do |event|
+        $log.info("druid.zk got event on discovery path") if $log
         check_services
       end
       check_services
     end
 
     def close!
+      $log.info("druid.zk shutting down") if $log
       @zk.close!
     end
 
     def register_service(service, brokers)
+      $log.info("druid.zk register", service: service, brokers: brokers) if $log
       # poor mans load balancing
       @registry[service] = brokers.shuffle
     end
 
     def unregister_service(service)
+      $log.info("druid.zk unregister", service: service) if $log
       @registry.delete(service)
       unwatch_service(service)
     end
 
     def watch_service(service)
       return if @watched_services.include?(service)
+      $log.info("druid.zk watch", service: service) if $log
       watch = @zk.register(watch_path(service), only: :child) do |event|
+        $log.info("druid.zk got event on watch path for", service: service, event: event) if $log
         unwatch_service(service)
         check_service(service)
       end
@@ -45,10 +52,12 @@ module Druid
 
     def unwatch_service(service)
       return unless @watched_services.include?(service)
+      $log.info("druid.zk unwatch", service: service) if $log
       @watched_services.delete(service).unregister
     end
 
     def check_services
+      $log.info("druid.zk checking services") if $log
       zk_services = @zk.children(@discovery_path, watch: true)
 
       (services - zk_services).each do |service|
@@ -61,6 +70,7 @@ module Druid
     end
 
     def verify_broker(service, name)
+      $log.info("druid.zk verify", broker: name, service: service) if $log
       info = @zk.get("#{watch_path(service)}/#{name}")
       node = MultiJson.load(info[0])
       uri = "http://#{node['address']}:#{node['port']}/druid/v2/"
@@ -68,6 +78,7 @@ module Druid
         method: :get, url: "#{uri}datasources/",
         timeout: 5, open_timeout: 5
       })
+      $log.info("druid.zk verified", uri: uri, sources: check) if $log
       return [uri, MultiJson.load(check.to_str)] if check.code == 200
     rescue RestClient::ResourceNotFound
       return false
@@ -85,6 +96,7 @@ module Druid
       known = @registry[service].map { |node| node[:name] }
       live = @zk.children(watch_path(service), watch: true)
       new_list = @registry[service].select { |node| live.include?(node[:name]) }
+      $log.info("druid.zk checking", service: service, known: known, live: live, new_list: new_list) if $log
 
       # verify the new entries to be living brokers
       (live - known).each do |name|
