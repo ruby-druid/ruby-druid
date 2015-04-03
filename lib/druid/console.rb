@@ -47,20 +47,19 @@ end
 
 module Druid
   class Console
-
     extend Forwardable
 
-    def initialize(uri, source, options)
-      @uri, @source, @options = uri, source, options
+    def initialize
+      client # trigger connect
       Ripl.start(binding: binding)
     end
 
     def client
-      @client ||= Druid::Client.new(@uri, @options)
+      @client ||= Druid::Client.new(opts[:zookeeper])
     end
 
-    def source
-      client.data_source(@source)
+    def source(name = nil)
+      client.data_source(name || opts[:source])
     end
 
     def dimensions
@@ -71,8 +70,8 @@ module Druid
       source.metrics.sort
     end
 
-    def query
-      $source = source
+    def query(name = nil)
+      $source = source(name)
       Query::Builder.new
     end
 

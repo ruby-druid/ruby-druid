@@ -1,6 +1,7 @@
-Gemfile.lock
 .driplrc
-ruby-druid-0.0.1.gem
+.user
+Gemfile.lock
+config/mixins/
+pkg/
 spec/test.json
 tmp/rspec_guard_result
-pkg/
