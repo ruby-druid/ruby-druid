@@ -432,6 +432,15 @@ describe Druid::Query do
       "type" => "and"})
     end
 
+    it 'creates a custom javascript filter' do
+      @query.filter{a.javascript("function(a) { return true; }")}
+      expect(JSON.parse(@query.query.to_json)['filter']).to eq({
+        "type" => "javascript",
+        "dimension" => "a",
+        "function" => "function(a) { return true; }"
+      })
+    end
+
     it 'can chain two in statements' do
       @query.filter{a.in([1,2,3]) & b.in([1,2,3])}
       expect(JSON.parse(@query.query.to_json)['filter']).to eq({"type"=>"and", "fields"=>[
