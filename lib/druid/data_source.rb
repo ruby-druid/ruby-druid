@@ -1,4 +1,5 @@
 require 'multi_json'
+require 'iso8601'
 
 module Druid
   class DataSource
@@ -14,12 +15,21 @@ module Druid
       end
     end
 
-    def metadata
-      @metadata ||= metadata!
+    def metadata(opts = {})
+      @metadata ||= metadata!(opts)
     end
 
-    def metadata!
+    def metadata!(opts = {})
       meta_path = "#{@uri.path}datasources/#{name}"
+
+      if opts[:interval]
+        from, to = opts[:interval]
+        from = from.respond_to?(:iso8601) ? from.iso8601 : ISO8601::DateTime.new(from).to_s
+        to = to.respond_to?(:iso8601) ? to.iso8601 : ISO8601::DateTime.new(to).to_s
+
+        meta_path += "?interval=#{from}/#{to}"
+      end
+
       req = Net::HTTP::Get.new(meta_path)
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
         http.read_timeout = 60_000 # ms
