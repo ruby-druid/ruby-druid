@@ -44,19 +44,21 @@ describe Druid::DataSource do
       expect(ds.metrics).to be_nil
     end
 
-    it 'includes interval in metadata request' do
-      stub = stub_request(:get, 'http://www.example.com/druid/v2/datasources/test?interval=2015-04-10T00:00:00+00:00/2015-04-17T00:00:00+00:00').
-        to_return(:status => 200, :body => '{}', :headers => {})
-      ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2/')
-      ds.metadata(:interval => ['2015-04-10', '2015-04-17'])
-      expect(stub).to have_been_requested
-    end
-
     it 'raises on request failure' do
       stub_request(:get, 'http://www.example.com/druid/v2/datasources/test').
         to_return(:status => 666, :body => 'Strange server error', :headers => {})
       ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2/')
       expect { ds.metrics }.to raise_error(RuntimeError)
+    end
+  end
+
+  context '#metadata!' do
+    it 'includes interval in metadata request' do
+      stub = stub_request(:get, 'http://www.example.com/druid/v2/datasources/test?interval=2015-04-10T00:00:00+00:00/2015-04-17T00:00:00+00:00').
+        to_return(:status => 200, :body => '{}', :headers => {})
+      ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2/')
+      ds.metadata!(:interval => ['2015-04-10', '2015-04-17'])
+      expect(stub).to have_been_requested
     end
   end
 

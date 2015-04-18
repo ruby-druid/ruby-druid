@@ -15,8 +15,8 @@ module Druid
       end
     end
 
-    def metadata(opts = {})
-      @metadata ||= metadata!(opts)
+    def metadata
+      @metadata ||= metadata!
     end
 
     def metadata!(opts = {})
