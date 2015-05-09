@@ -271,7 +271,6 @@ module Druid
         @query = Query.new
         query_type(:timeseries)
         interval(Time.now.utc.beginning_of_day)
-        granularity(:all)
       end
 
       def query_type(type)
