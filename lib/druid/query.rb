@@ -318,6 +318,8 @@ module Druid
 
       def metadata
         query_type(:segmentMetadata)
+        @query.context.useCache = false
+        @query.context.populateCache = false
         self
       end
 
