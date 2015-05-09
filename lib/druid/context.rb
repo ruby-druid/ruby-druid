@@ -22,6 +22,8 @@ module Druid
     attr_accessor :finalize
     validates :finalize, allow_nil: true, inclusion: { in: [true, false] }
 
+    attr_accessor :chunkPeriod
+
     def initialize(attributes = {})
       super
       @queryId ||= SecureRandom.uuid
