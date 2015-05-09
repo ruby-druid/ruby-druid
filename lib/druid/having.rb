@@ -57,7 +57,6 @@ module Druid
     validates :aggregation, aggregation: true
 
     attr_accessor :value
-    validates :value, aggregation: true
 
     def method_missing(name, *args)
       if args.empty?

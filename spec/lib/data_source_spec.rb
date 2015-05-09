@@ -13,7 +13,7 @@ describe Druid::DataSource do
           :headers => { 'Accept' => '*/*', 'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3', 'Content-Type' => 'application/json', 'User-Agent' => 'Ruby' }).
         to_return(:status => 200, :body => '[]', :headers => {})
       ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2')
-      query = Druid::Query::Builder.new.interval('2013-04-04', '2013-04-04').query
+      query = Druid::Query::Builder.new.interval('2013-04-04', '2013-04-04').granularity(:all).query
       query.context.queryId = nil
       expect(ds.post(query)).to be_empty
     end
@@ -30,7 +30,7 @@ describe Druid::DataSource do
           :headers => { 'Accept' => '*/*', 'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3', 'Content-Type' => 'application/json', 'User-Agent' => 'Ruby' }).
         to_return(:status => 666, :body => 'Strange server error', :headers => {})
       ds = Druid::DataSource.new('test/test', 'http://www.example.com/druid/v2')
-      query = Druid::Query::Builder.new.interval('2013-04-04', '2013-04-04').query
+      query = Druid::Query::Builder.new.interval('2013-04-04', '2013-04-04').granularity(:all).query
       query.context.queryId = nil
       expect { ds.post(query) }.to raise_error(Druid::DataSource::Error)
     end

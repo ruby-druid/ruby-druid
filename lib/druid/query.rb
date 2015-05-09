@@ -437,7 +437,7 @@ module Druid
       end
 
       def having_from_hash(h)
-        chain_having(HavingClause.new(h))
+        chain_having(Having.new(h))
       end
 
       def chain_having(having)
