@@ -108,6 +108,7 @@ module Druid
       :sum,
       :long_sum,
       :double_sum,
+      :histogram,
       :min,
       :max,
       :hyper_unique,

@@ -356,7 +356,6 @@ module Druid
       end
 
       ### aggregations
-
       [:count, :long_sum, :double_sum, :min, :max, :hyper_unique].each do |method_name|
         define_method method_name do |*metrics|
           metrics.flatten.compact.each do |metric|
@@ -368,6 +367,26 @@ module Druid
           end
           self
         end
+      end
+
+      def histogram(metric, type = "equalBuckets", args = {})
+        @query.aggregations << Aggregation.new({
+          type: "approxHistogramFold",
+          name: "raw_#{metric}",
+          fieldName: metric,
+        })
+
+        type = type.dup
+        type[0] = type[0].upcase
+
+        options = args.dup.merge({
+          name: metric,
+          fieldName: "raw_#{metric}"
+        })
+        puts "opts = #{options}"
+        @query.postAggregations << ::Druid.const_get("PostAggregationHistogram#{type}").new(options)
+
+        self
       end
 
       alias_method :sum, :long_sum

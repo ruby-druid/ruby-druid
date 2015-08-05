@@ -2,6 +2,8 @@ module Druid
   class PostAggregation
     include ActiveModel::Model
 
+    attr_accessor :numBuckets
+
     attr_accessor :type
     validates :type, inclusion: { in: %w(arithmetic fieldAccess constant javascript hyperUniqueCardinality) }
 
@@ -209,4 +211,61 @@ module Druid
       match.captures.first.split(',').map(&:strip)
     end
   end
+
+  class PostAggregationHistogramEqualBuckets < PostAggregation
+    attr_accessor :numBuckets
+    def initialize(attributes = {})
+      super(attributes)
+      @type = "equalBuckets"
+      @numBuckets ||= 10
+    end
+  end
+
+  class PostAggregationHistogramBuckets < PostAggregation
+    attr_accessor :bucketSize
+    attr_accessor :offset
+    def initialize(attributes = {})
+      super
+      @type = "buckets"
+    end
+  end
+
+  class PostAggregationHistogramCustomBuckets < PostAggregation
+    attr_accessor :breaks
+    def initialize(attributes = {})
+      super
+      @type = "customBuckets"
+    end
+  end
+
+  class PostAggregationHistogramMin < PostAggregation
+    def initialize(attributes = {})
+      super
+      @type = "min"
+    end
+  end
+
+  class PostAggregationHistogramMax < PostAggregation
+    def initialize(attributes = {})
+      super
+      @type = "max"
+    end
+  end
+
+  class PostAggregationHistogramQuantile < PostAggregation
+    attr_accessor :propability
+    def initialize(attributes = {})
+      super
+      @type = "quantile"
+    end
+  end
+
+  class PostAggregationHistogramQuantiles < PostAggregation
+    attr_accessor :probabilities
+    def initialize(attributes = {})
+      super
+      @type = "quantiles"
+    end
+  end
+
 end
