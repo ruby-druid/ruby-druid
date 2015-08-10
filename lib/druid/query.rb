@@ -369,23 +369,24 @@ module Druid
         end
       end
 
+      def histograms(metrics)
+        metrics.each{|m| histogram(m) }
+        self
+      end
+
       def histogram(metric, type = "equalBuckets", args = {})
         @query.aggregations << Aggregation.new({
           type: "approxHistogramFold",
           name: "raw_#{metric}",
           fieldName: metric,
         })
-
         type = type.dup
         type[0] = type[0].upcase
-
         options = args.dup.merge({
           name: metric,
           fieldName: "raw_#{metric}"
         })
-        puts "opts = #{options}"
         @query.postAggregations << ::Druid.const_get("PostAggregationHistogram#{type}").new(options)
-
         self
       end
 
