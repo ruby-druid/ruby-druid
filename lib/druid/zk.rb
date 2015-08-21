@@ -80,7 +80,7 @@ module Druid
       })
       $log.info("druid.zk verified", uri: uri, sources: check) if $log
       return [uri, MultiJson.load(check.to_str)] if check.code == 200
-    rescue RestClient::ResourceNotFound
+    rescue
       return false
     end
 
