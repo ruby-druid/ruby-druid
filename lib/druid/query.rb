@@ -23,7 +23,10 @@ module Druid
 
     class IntervalsValidator < ActiveModel::EachValidator
       def validate_each(record, attribute, value)
-        record.errors.add(attribute, 'must be a list with at least one interval') if !value.is_a?(Array) || value.blank?
+        if !value.is_a?(Array) || value.blank?
+          record.errors.add(attribute, 'must be a list with at least one interval')
+          return
+        end
         value.each do |interval|
           parts = interval.to_s.split('/')
           record.errors.add(attribute, 'must consist of two ISO8601 dates seperated by /') unless parts.length == 2
