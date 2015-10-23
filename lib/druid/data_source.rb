@@ -33,7 +33,8 @@ module Druid
 
       req = Net::HTTP::Get.new(meta_path)
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
-        http.read_timeout = 60_000 # ms
+        http.open_timeout = 10 # if druid is down fail fast
+        http.read_timeout = nil # we wait until druid is finished
         http.request(req)
       end
 
@@ -61,6 +62,7 @@ module Druid
       req.body = query.to_json
 
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
+        http.open_timeout = 10 # if druid is down fail fast
         http.read_timeout = nil # we wait until druid is finished
         http.request(req)
       end
