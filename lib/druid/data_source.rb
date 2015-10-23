@@ -8,6 +8,7 @@ module Druid
 
     def initialize(name, uri)
       @name = name.split('/').last
+      uri = uri.sample if uri.is_a?(Array)
       if uri.is_a?(String)
         @uri = URI(uri)
       else
