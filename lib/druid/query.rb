@@ -379,7 +379,7 @@ module Druid
 
       def histogram(metric, type = "equalBuckets", args = {})
         @query.aggregations << Aggregation.new({
-          type: "approxHistogramFold",
+          type: "approxHistogram",
           name: "raw_#{metric}",
           fieldName: metric,
         })
