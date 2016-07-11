@@ -1,9 +1,7 @@
-require 'bundler/setup'
-require 'liquid/boot'
-require 'liquid/tasks'
-
-Dir[ File.join(File.dirname(__FILE__), 'tasks', '*.rake') ].sort.each do |f|
-  load f
+begin
+  require 'rspec/core/rake_task'
+  RSpec::Core::RakeTask.new(:spec)
+rescue LoadError
 end
 
 task default: :spec

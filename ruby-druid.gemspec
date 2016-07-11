@@ -1,17 +1,19 @@
-# encoding: utf-8
+lib = File.expand_path("../lib", __FILE__)
+$:.unshift(lib) unless $:.include?(lib)
+
+require "druid/version"
 
 Gem::Specification.new do |spec|
   spec.name          = "ruby-druid"
-  spec.version       = "0.2.0.rc3"
+  spec.version       = Druid::VERSION
   spec.authors       = ["Ruby Druid Community"]
   spec.summary       = %q{Ruby client for Druid}
   spec.description   = %q{Ruby client for Druid}
   spec.homepage      = "https://github.com/ruby-druid/ruby-druid"
   spec.license       = "MIT"
 
-  spec.files         = `git ls-files`.split($/)
-  spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
-  spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
+  spec.files = Dir["lib/**/*"] + %w{LICENSE README.md ruby-druid.gemspec}
+  spec.test_files = Dir["spec/**/*"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activesupport"
@@ -20,4 +22,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "multi_json"
   spec.add_dependency "rest-client"
   spec.add_dependency "zk"
+  spec.add_development_dependency "rake"
+  spec.add_development_dependency "rspec"
+  spec.add_development_dependency "webmock"
 end
