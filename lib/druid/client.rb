@@ -15,5 +15,9 @@ module Druid
       Druid::DataSource.new(source, uri)
     end
 
+    def data_sources
+      @zk.data_sources
+    end
+
   end
 end
