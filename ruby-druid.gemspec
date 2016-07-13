@@ -16,13 +16,13 @@ Gem::Specification.new do |spec|
   spec.test_files = Dir["spec/**/*"]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activesupport"
-  spec.add_dependency "activemodel"
-  spec.add_dependency "iso8601"
-  spec.add_dependency "multi_json"
-  spec.add_dependency "rest-client"
-  spec.add_dependency "zk"
-  spec.add_development_dependency "rake"
-  spec.add_development_dependency "rspec"
-  spec.add_development_dependency "webmock"
+  spec.add_dependency "activesupport", "~> 4.2"
+  spec.add_dependency "activemodel", "~> 4.2"
+  spec.add_dependency "iso8601", "~> 0.9"
+  spec.add_dependency "multi_json", "~> 1.12"
+  spec.add_dependency "rest-client", "~> 2.0"
+  spec.add_dependency "zk", "~> 1.9"
+  spec.add_development_dependency "rake", "~> 11.2"
+  spec.add_development_dependency "rspec", "~> 3.4"
+  spec.add_development_dependency "webmock", "~> 2.1"
 end
