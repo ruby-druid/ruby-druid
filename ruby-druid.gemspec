@@ -7,8 +7,11 @@ Gem::Specification.new do |spec|
   spec.name          = "ruby-druid"
   spec.version       = Druid::VERSION
   spec.authors       = ["Ruby Druid Community"]
-  spec.summary       = %q{Ruby client for Druid}
-  spec.description   = %q{Ruby client for Druid}
+  spec.summary       = %q{A Ruby client for Druid}
+  spec.description   = <<-EOF
+    ruby-druid is a Ruby client for Druid. It includes a Squeel-like query DSL
+    and generates a JSON query that can be sent to Druid directly.
+  EOF
   spec.homepage      = "https://github.com/ruby-druid/ruby-druid"
   spec.license       = "MIT"
 
