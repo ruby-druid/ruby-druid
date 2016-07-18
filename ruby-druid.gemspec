@@ -19,8 +19,8 @@ Gem::Specification.new do |spec|
   spec.test_files = Dir["spec/**/*"]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activesupport", "~> 4.2"
-  spec.add_dependency "activemodel", "~> 4.2"
+  spec.add_dependency "activesupport", ">= 3.0.0"
+  spec.add_dependency "activemodel", ">= 3.0.0"
   spec.add_dependency "iso8601", "~> 0.9"
   spec.add_dependency "multi_json", "~> 1.12"
   spec.add_dependency "rest-client", "~> 2.0"
