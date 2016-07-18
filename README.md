@@ -3,9 +3,9 @@
 A Ruby client for [Druid](http://druid.io). Includes a [Squeel](https://github.com/ernie/squeel)-like query DSL and generates a JSON query that can be sent to Druid directly.
 
 [![Gem Version](https://badge.fury.io/rb/ruby-druid.png)](http://badge.fury.io/rb/ruby-druid)
-[![Build Status](https://travis-ci.org/liquidm/ruby-druid.png)](https://travis-ci.org/liquidm/ruby-druid)
-[![Code Climate](https://codeclimate.com/github/liquidm/ruby-druid.png)](https://codeclimate.com/github/liquidm/ruby-druid)
-[![Dependency Status](https://gemnasium.com/liquidm/ruby-druid.png)](https://gemnasium.com/liquidm/ruby-druid)
+[![Build Status](https://travis-ci.org/ruby-druid/ruby-druid.png)](https://travis-ci.org/ruby-druid/ruby-druid)
+[![Code Climate](https://codeclimate.com/github/ruby-druid/ruby-druid.png)](https://codeclimate.com/github/ruby-druid/ruby-druid)
+[![Dependency Status](https://gemnasium.com/ruby-druid/ruby-druid.png)](https://gemnasium.com/ruby-druid/ruby-druid)
 
 ## Installation
 
