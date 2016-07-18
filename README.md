@@ -18,13 +18,13 @@ gem 'ruby-druid'
 And then execute:
 
 ```
-$ bundle
+bundle
 ```
 
 Or install it yourself as:
 
 ```
-$ gem install ruby-druid
+gem install ruby-druid
 ```
 
 ## Usage
