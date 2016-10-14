@@ -21,7 +21,9 @@ describe Druid::Query do
 
   it 'takes dimensions from group_by method' do
     @query.group_by(:a, :b, :c)
-    expect(JSON.parse(@query.query.to_json)['dimensions']).to eq(['a', 'b', 'c'])
+    expect(JSON.parse(@query.query.to_json)['dimensions']).to eq([{"type"=>"default", "dimension"=>"a", "outputName"=>"a"},
+                                                                  {"type"=>"default", "dimension"=>"b", "outputName"=>"b"},
+                                                                  {"type"=>"default", "dimension"=>"c", "outputName"=>"c"}])
   end
 
   it 'takes dimension, metric and threshold from topn method' do

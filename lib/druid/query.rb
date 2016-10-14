@@ -5,6 +5,7 @@ require 'active_support/all'
 require 'active_model'
 
 require 'druid/granularity'
+require 'druid/dimension'
 require 'druid/aggregation'
 require 'druid/post_aggregation'
 require 'druid/filter'
@@ -80,7 +81,16 @@ module Druid
       TYPES = %w(groupBy select)
       def validate_each(record, attribute, value)
         if TYPES.include?(record.queryType)
-          record.errors.add(attribute, 'must be a list with at least one dimension') if !value.is_a?(Array) || value.blank?
+          if !value.is_a?(Array) || value.blank?
+            record.errors.add(attribute, 'must be a list with at least one dimension')
+          else
+            value.each(&:valid?) # trigger validation
+            value.each do |avalue|
+              avalue.errors.messages.each do |k, v|
+                record.errors.add(attribute, { k => v })
+              end
+            end
+          end
         else
           record.errors.add(attribute, "is not supported by type=#{record.queryType}") if value
         end
@@ -90,14 +100,34 @@ module Druid
     attr_accessor :dimensions
     validates :dimensions, dimensions: true
 
+    def dimensions
+      @dimensions ||= []
+    end
+
+    def dimensions=(value)
+      if value.is_a?(Array)
+        @dimensions = value.map do |x|
+          x.is_a?(Dimension) ? x : Dimension.new(x)
+        end
+      else
+        @dimensions = [
+          value.is_a?(Dimension) ? value : Dimension.new(value)
+        ]
+      end
+    end
+
     class AggregationsValidator < ActiveModel::EachValidator
       TYPES = %w(timeseries groupBy topN)
       def validate_each(record, attribute, value)
         if TYPES.include?(record.queryType)
-          value.each(&:valid?) # trigger validation
-          value.each do |avalue|
-            avalue.errors.messages.each do |k, v|
-              record.errors.add(attribute, { k => v })
+          if !value.is_a?(Array) || value.blank?
+            record.errors.add(attribute, 'must be a list with at least one aggregator')
+          else
+            value.each(&:valid?) # trigger validation
+            value.each do |avalue|
+              avalue.errors.messages.each do |k, v|
+                record.errors.add(attribute, { k => v })
+              end
             end
           end
         else
@@ -116,10 +146,12 @@ module Druid
     def aggregations=(value)
       if value.is_a?(Array)
         @aggregations = value.map do |x|
-          Aggregation.new(x)
+          x.is_a?(Aggregation) ? x : Aggregation.new(x)
         end
       else
-        @aggregations = [value]
+        @aggregations = [
+          value.is_a?(Aggregation) ? value : Aggregation.new(value)
+        ]
       end
     end
 
@@ -333,7 +365,9 @@ module Druid
 
       def group_by(*dimensions)
         query_type(:groupBy)
-        @query.dimensions = dimensions.flatten
+        @query.dimensions = dimensions.map do |dimension|
+          dimension.is_a?(Dimension) ? dimension : Dimension.new(dimension)
+        end
         self
       end
 
