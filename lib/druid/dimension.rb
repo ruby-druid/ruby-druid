@@ -37,11 +37,11 @@ module Druid
       super(options.merge(except: %w(errors validation_context)))
     end
 
-    def self.lookup(dimension, namespace, retain: true, injective: false)
+    def self.lookup(dimension, namespace, outputName: nil, retain: true, injective: false)
       new({
         type: 'extraction',
         dimension: dimension,
-        outputName: dimension,
+        outputName: outputName || namespace,
         extractionFn: {
           type: 'registeredLookup',
           lookup: namespace,
