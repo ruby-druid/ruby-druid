@@ -365,7 +365,7 @@ module Druid
 
       def group_by(*dimensions)
         query_type(:groupBy)
-        @query.dimensions = dimensions.map do |dimension|
+        @query.dimensions = dimensions.flatten.map do |dimension|
           dimension.is_a?(Dimension) ? dimension : Dimension.new(dimension)
         end
         self
