@@ -29,31 +29,21 @@ gem install ruby-druid
 
 ## Usage
 
-```ruby
-Druid::Client.new('zk1:2181,zk2:2181/druid').query('service/source')
-```
-
-returns a query object on which all other methods can be called to create a full and valid Druid query.
-
-A query object can be sent like this:
+A query can be constructed and sent like so:
 
 ```ruby
-client = Druid::Client.new('zk1:2181,zk2:2181/druid')
-query = Druid::Query.new('service/source')
-client.send(query)
+data_source = Druid::Client.new('zk1:2181,zk2:2181/druid').data_source('service/source')
+query = Druid::Query::Builder.new.long_sum(:aggregate1).last(1.day).granularity(:all)
+result = data_source.post(query)
 ```
 
-The `send` method returns the parsed response from the druid server as an array.  If the response is not empty it contains one `ResponseRow` object for each row.  The timestamp by can be received by a method with the same name (i.e. `row.timestamp`), all row values by hashlike syntax (i.e. `row['dimension'])
+The `post` method on the `DataSource` returns the parsed response from the Druid server as an array.
 
-An options hash can be passed when creating `Druid::Client` instance:
+If you don't want to use ZooKeeper for broker discovery, you can explicitly construct a `DataSource`:
 
 ```ruby
-client = Druid::Client.new('zk1:2181,zk2:2181/druid', http_timeout: 20)
+data_source = Druid::DataSource.new('service/source', 'http://localhost:8080/druid/v2')
 ```
-
-Supported options are:
-* `static_setup` to explicitly specify a broker url, e.g. `static_setup: { 'my/source_name' => 'http://1.2.3.4:8080/druid/v2/' }`
-* `http_timeout` to define a timeout for sending http queries to a broker (in minutes, default value is 2)
 
 ### GroupBy
 
@@ -63,7 +53,7 @@ dimensions to group the data.
 `queryType` is set automatically to `groupBy`.
 
 ```ruby
-Druid::Query.new('service/source').group_by([:dimension1, :dimension2])
+Druid::Query::Builder.new.group_by([:dimension1, :dimension2])
 ```
 
 ### TimeSeries
@@ -71,7 +61,7 @@ Druid::Query.new('service/source').group_by([:dimension1, :dimension2])
 A [TimeSeriesQuery](http://druid.io/docs/latest/querying/timeseriesquery.html) returns an array of JSON objects where each object represents a value asked for by the timeseries query.
 
 ```ruby
-Druid::Query.new('service/source').time_series([:aggregate1, :aggregate2])
+Druid::Query::Builder.new.time_series([:aggregate1, :aggregate2])
 ```
 
 ### Aggregations
@@ -79,7 +69,7 @@ Druid::Query.new('service/source').time_series([:aggregate1, :aggregate2])
 #### longSum, doubleSum, count, min, max, hyperUnique
 
 ```ruby
-Druid::Query.new('service/source').long_sum([:aggregate1, :aggregate2])
+Druid::Query::Builder.new.long_sum([:aggregate1, :aggregate2])
 ```
 
 In the same way could be used the following methods for [aggregations](http://druid.io/docs/latest/querying/aggregations.html) adding: `double_sum, count, min, max, hyper_unique`
@@ -87,7 +77,7 @@ In the same way could be used the following methods for [aggregations](http://dr
 #### cardinality
 
 ```ruby
-Druid::Query.new('service/source').cardinality(:aggregate, [:dimension1, dimension2], <by_row: true | false>)
+Druid::Query::Builder.new.cardinality(:aggregate, [:dimension1, dimension2], <by_row: true | false>)
 ```
 
 #### javascript
@@ -95,7 +85,7 @@ Druid::Query.new('service/source').cardinality(:aggregate, [:dimension1, dimensi
 For example calculation for `sum(log(x)/y) + 10`:
 
 ```ruby
-Druid::Query.new('service/source').js_aggregation(:aggregate, [:x, :y],
+Druid::Query::Builder.new.js_aggregation(:aggregate, [:x, :y],
   aggregate: "function(current, a, b)      { return current + (Math.log(a) * b); }",
   combine:   "function(partialA, partialB) { return partialA + partialB; }",
   reset:     "function()                   { return 10; }"
@@ -107,7 +97,7 @@ Druid::Query.new('service/source').js_aggregation(:aggregate, [:x, :y],
 A simple syntax for post aggregations with +,-,/,* can be used like:
 
 ```ruby
-query = Druid::Query.new('service/source').long_sum([:aggregate1, :aggregate2])
+query = Druid::Query::Builder.new.long_sum([:aggregate1, :aggregate2])
 query.postagg { (aggregate2 + aggregate2).as output_field_name }
 ```
 
@@ -124,7 +114,7 @@ query.postagg { js('function(aggregate1, aggregate2) { return aggregate1 + aggre
 The interval for the query takes a string with date and time or objects that provide an `iso8601` method.
 
 ```ruby
-query = Druid::Query.new('service/source').long_sum(:aggregate1)
+query = Druid::Query::Builder.new.long_sum(:aggregate1)
 query.interval("2013-01-01T00", Time.now)
 ```
 
@@ -139,14 +129,14 @@ The period `'day'` or `:day` will be interpreted as `'P1D'`.
 If a period granularity is specifed, the (optional) second parameter is a time zone. It defaults to the machines local time zone. i.e.
 
 ```ruby
-query = Druid::Query.new('service/source').long_sum(:aggregate1)
+query = Druid::Query::Builder.new.long_sum(:aggregate1)
 query.granularity(:day)
 ```
 
 is (on my box) the same as
 
 ```ruby
-query = Druid::Query.new('service/source').long_sum(:aggregate1)
+query = Druid::Query::Builder.new.long_sum(:aggregate1)
 query.granularity('P1D', 'Europe/Berlin')
 ```
 
@@ -154,18 +144,18 @@ query.granularity('P1D', 'Europe/Berlin')
 
 ```ruby
 # equality
-Druid::Query.new('service/source').having { metric == 10 }
+Druid::Query::Builder.new.having { metric == 10 }
 ```
 
 ```ruby
 # inequality
-Druid::Query.new('service/source').having { metric != 10 }
+Druid::Query::Builder.new.having { metric != 10 }
 ```
 
 ```ruby
 # greater, less
-Druid::Query.new('service/source').having { metric > 10 }
-Druid::Query.new('service/source').having { metric < 10 }
+Druid::Query::Builder.new.having { metric > 10 }
+Druid::Query::Builder.new.having { metric < 10 }
 ```
 
 #### Compound having filters
@@ -174,17 +164,17 @@ Having filters can be combined with boolean logic.
 
 ```ruby
 # and
-Druid::Query.new('service/source').having { (metric != 1) & (metric2 != 2) }
+Druid::Query::Builder.new.having { (metric != 1) & (metric2 != 2) }
 ```
 
 ```ruby
 # or
-Druid::Query.new('service/source').having { (metric == 1) | (metric2 == 2) }
+Druid::Query::Builder.new.having { (metric == 1) | (metric2 == 2) }
 ```
 
 ```ruby
 # not
-Druid::Query.new('service/source').having{ !metric.eq(1) }
+Druid::Query::Builder.new.having{ !metric.eq(1) }
 ```
 
 ### Filters
@@ -197,27 +187,27 @@ Filters can be chained `filter{...}.filter{...}`
 
 ```ruby
 # equality
-Druid::Query.new('service/source').filter{dimension.eq 1}
-Druid::Query.new('service/source').filter{dimension == 1}
+Druid::Query::Builder.new.filter{dimension.eq 1}
+Druid::Query::Builder.new.filter{dimension == 1}
 ```
 
 ```ruby
 # inequality
-Druid::Query.new('service/source').filter{dimension.neq 1}
-Druid::Query.new('service/source').filter{dimension != 1}
+Druid::Query::Builder.new.filter{dimension.neq 1}
+Druid::Query::Builder.new.filter{dimension != 1}
 ```
 
 ```ruby
 # greater, less
-Druid::Query.new('service/source').filter{dimension > 1}
-Druid::Query.new('service/source').filter{dimension >= 1}
-Druid::Query.new('service/source').filter{dimension < 1}
-Druid::Query.new('service/source').filter{dimension <= 1}
+Druid::Query::Builder.new.filter{dimension > 1}
+Druid::Query::Builder.new.filter{dimension >= 1}
+Druid::Query::Builder.new.filter{dimension < 1}
+Druid::Query::Builder.new.filter{dimension <= 1}
 ```
 
 ```ruby
 # JavaScript
-Druid::Query.new('service/source').filter{a.javascript('dimension >= 1 && dimension < 5')}
+Druid::Query::Builder.new.filter{a.javascript('dimension >= 1 && dimension < 5')}
 ```
 
 #### Compound Filters
@@ -226,17 +216,17 @@ Filters can be combined with boolean logic.
 
 ```ruby
 # and
-Druid::Query.new('service/source').filter{dimension.neq 1 & dimension2.neq 2}
+Druid::Query::Builder.new.filter{dimension.neq 1 & dimension2.neq 2}
 ```
 
 ```ruby
 # or
-Druid::Query.new('service/source').filter{dimension.neq 1 | dimension2.neq 2}
+Druid::Query::Builder.new.filter{dimension.neq 1 | dimension2.neq 2}
 ```
 
 ```ruby
 # not
-Druid::Query.new('service/source').filter{!dimension.eq(1)}
+Druid::Query::Builder.new.filter{!dimension.eq(1)}
 ```
 
 #### Inclusion Filter
@@ -244,18 +234,18 @@ Druid::Query.new('service/source').filter{!dimension.eq(1)}
 This filter creates a set of equals filters in an or filter.
 
 ```ruby
-Druid::Query.new('service/source').filter{dimension.in(1,2,3)}
+Druid::Query::Builder.new.filter{dimension.in(1,2,3)}
 ```
 #### Geographic filter
 
 These filters have to be combined with time_series and do only work when coordinates is a spatial dimension [GeographicQueries](http://druid.io/docs/latest/development/geo.html)
 
 ```ruby
-Druid::Query.new('service/source').time_series().long_sum([:aggregate1]).filter{coordinates.in_rec [[50.0,13.0],[54.0,15.0]]}
+Druid::Query::Builder.new.time_series().long_sum([:aggregate1]).filter{coordinates.in_rec [[50.0,13.0],[54.0,15.0]]}
 ```
 
 ```ruby
-Druid::Query.new('service/source').time_series().long_sum([:aggregate1]).filter{coordinates.in_circ [[53.0,13.0], 5.0]}
+Druid::Query::Builder.new.time_series().long_sum([:aggregate1]).filter{coordinates.in_circ [[53.0,13.0], 5.0]}
 ```
 
 #### Exclusion Filter
@@ -263,7 +253,7 @@ Druid::Query.new('service/source').time_series().long_sum([:aggregate1]).filter{
 This filter creates a set of not-equals fitlers in an and filter.
 
 ```ruby
-Druid::Query.new('service/source').filter{dimension.nin(1,2,3)}
+Druid::Query::Builder.new.filter{dimension.nin(1,2,3)}
 ```
 
 #### Hash syntax
@@ -271,9 +261,9 @@ Druid::Query.new('service/source').filter{dimension.nin(1,2,3)}
 Sometimes it can be useful to use a hash syntax for filtering for example if you already get them from a list or parameter hash.
 
 ```ruby
-Druid::Query.new('service/source').filter{dimension => 1, dimension1 =>2, dimension2 => 3}
+Druid::Query::Builder.new.filter{dimension => 1, dimension1 =>2, dimension2 => 3}
 # which is equivalent to
-Druid::Query.new('service/source').filter{dimension.eq(1) & dimension1.eq(2) & dimension2.eq(3)}
+Druid::Query::Builder.new.filter{dimension.eq(1) & dimension1.eq(2) & dimension2.eq(3)}
 ```
 
 ## Contributing
