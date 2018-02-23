@@ -46,6 +46,7 @@ describe Druid::DataSource do
         expect(error.error_message).to eq('NullPointerException')
         expect(error.error_class).to eq('java.lang.NullPointerException')
         expect(error.host).to eq('www.example.com')
+        expect(error).to be_unknown_exception
       }
     end
   end

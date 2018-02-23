@@ -81,12 +81,6 @@ module Druid
     end
 
     class Error < StandardError
-      QUERY_TIMEOUT = 'Query timeout'.freeze
-      QUERY_INTERRUPTED = 'Query interrupted'.freeze
-      QUERY_CANCELLED = 'Query cancelled'.freeze
-      RESOURCE_LIMIT_EXCEEDED = 'Resource limit exceeded'.freeze
-      UNKNOWN_EXCEPTION = 'Unknown exception'.freeze
-
       attr_reader :error, :error_message, :error_class, :host, :response
 
       def initialize(response)
@@ -102,6 +96,26 @@ module Druid
 
       def message
         error
+      end
+
+      def query_timeout?
+        error == 'Query timeout'.freeze
+      end
+
+      def query_interrupted?
+        error == 'Query interrupted'.freeze
+      end
+
+      def query_cancelled?
+        error == 'Query cancelled'.freeze
+      end
+
+      def resource_limit_exceeded?
+        error == 'Resource limit exceeded'.freeze
+      end
+
+      def unknown_exception?
+        error == 'Unknown exception'.freeze
       end
     end
   end
