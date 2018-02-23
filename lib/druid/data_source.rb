@@ -74,22 +74,35 @@ module Druid
           return self.post(query)
         end
 
-        raise Error.new(response), "request failed"
+        raise Error.new(response)
       end
 
       MultiJson.load(response.body)
     end
 
     class Error < StandardError
-      attr_reader :response
+      QUERY_TIMEOUT = 'Query timeout'.freeze
+      QUERY_INTERRUPTED = 'Query interrupted'.freeze
+      QUERY_CANCELLED = 'Query cancelled'.freeze
+      RESOURCE_LIMIT_EXCEEDED = 'Resource limit exceeded'.freeze
+      UNKNOWN_EXCEPTION = 'Unknown exception'.freeze
+
+      attr_reader :error, :error_message, :error_class, :host, :response
+
       def initialize(response)
         @response = response
+        parsed_body = MultiJson.load(response.body)
+        @error, @error_message, @error_class, @host = parsed_body.values_at(*%w(
+          error
+          errorMessage
+          errorClass
+          host
+        ))
       end
 
       def message
-        MultiJson.load(response.body)["error"]
+        error
       end
     end
-
   end
 end
