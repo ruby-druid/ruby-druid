@@ -3,13 +3,17 @@ module Druid
     include ActiveModel::Model
 
     attr_accessor :type
-    validates :type, inclusion: { in: %w(count longSum doubleSum min max javascript cardinality hyperUnique) }
+    validates :type, inclusion: { in: %w[count longSum doubleSum min max
+                                         javascript cardinality hyperUnique
+                                         doubleFirst doubleLast longFirst
+                                         longLast floatFirst floatLast] }
 
     attr_accessor :name
     validates :name, presence: true
 
     class FieldnameValidator < ActiveModel::EachValidator
-      TYPES = %w(count longSum doubleSum min max hyperUnique)
+      TYPES = %w[count longSum doubleSum min max hyperUnique doubleFirst
+                 doubleLast longFirst longLast floatFirst floatLast].freeze
       def validate_each(record, attribute, value)
         if TYPES.include?(record.type)
           record.errors.add(attribute, 'may not be blank') if value.blank?
