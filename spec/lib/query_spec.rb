@@ -141,6 +141,28 @@ describe Druid::Query do
         @query.postagg { js('{ return a_with_b - a; }').as b }
       }.to raise_error
     end
+
+    it 'build a post aggregation with hyperUniqueCardinality' do
+      post_agg = Druid::PostAggregationOperation.new(
+        Druid::PostAggregationField.new(fieldName: 'a', type: 'hyperUniqueCardinality'),
+        :/,
+        2
+      )
+      post_agg.name = 'a_2'
+      @query.query.postAggregations << post_agg
+
+      expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq(
+        [{
+          'type' => 'arithmetic',
+          'fn' => '/',
+          'fields' => [
+            { 'type' => 'hyperUniqueCardinality', 'fieldName' => 'a' },
+            { 'type' => 'constant', 'value' => 2 }
+          ],
+          'name' => 'a_2'
+        }]
+      )
+    end
   end
 
   it 'builds aggregations on long_sum' do
