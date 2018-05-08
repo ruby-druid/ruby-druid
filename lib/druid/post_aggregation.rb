@@ -163,7 +163,7 @@ module Druid
 
     def initialize(attributes = {})
       super
-      @type = 'fieldAccess'
+      @type ||= 'fieldAccess'
     end
 
     def field_names
