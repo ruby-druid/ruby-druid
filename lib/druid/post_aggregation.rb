@@ -253,7 +253,7 @@ module Druid
   end
 
   class PostAggregationHistogramQuantile < PostAggregation
-    attr_accessor :propability
+    attr_accessor :probability
     def initialize(attributes = {})
       super
       @type = "quantile"
