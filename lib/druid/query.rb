@@ -393,7 +393,7 @@ module Druid
       end
 
       ### aggregations
-      [:count, :long_sum, :double_sum, :min, :max, :hyper_unique].each do |method_name|
+      %i[count long_sum double_sum float_sum long_min long_max double_min double_max float_min float_max hyper_unique].each do |method_name|
         define_method method_name do |*metrics|
           metrics.flatten.compact.each do |metric|
             @query.aggregations << Aggregation.new({
