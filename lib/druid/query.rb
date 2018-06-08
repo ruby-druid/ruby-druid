@@ -451,6 +451,19 @@ module Druid
         self
       end
 
+      def filtered_aggregation(metric, aggregation_type, &filter)
+        @query.aggregations << Aggregation.new(
+          type: 'filtered',
+          filter: Filter.new.instance_exec(&filter),
+          aggregator: Aggregation.new(
+            type: aggregation_type.to_s.camelize(:lower),
+            name: metric,
+            fieldName: metric
+          )
+        ) unless @query.contains_aggregation?(metric)
+        self
+      end
+
       ## post aggregations
 
       def postagg(type = :long_sum, &block)
