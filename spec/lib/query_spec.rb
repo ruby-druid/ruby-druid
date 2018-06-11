@@ -211,7 +211,7 @@ describe Druid::Query do
 
   describe '#filtered_aggregation' do
     it 'builds filtered aggregations' do
-      @query.filtered_aggregation(:a, :longSum) do
+      @query.filtered_aggregation(:a, :a_filtered, :longSum) do
         b.eq(2) & c.neq(3)
       end
       expect(JSON.parse(@query.query.to_json)['aggregations']).to eq [
@@ -229,7 +229,7 @@ describe Druid::Query do
               }
             ]
           },
-          'aggregator' => { 'type' => 'longSum', 'name' => 'a', 'fieldName' => 'a' }
+          'aggregator' => { 'type' => 'longSum', 'name' => 'a_filtered', 'fieldName' => 'a' }
         }
       ]
     end

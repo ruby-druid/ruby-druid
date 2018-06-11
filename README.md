@@ -97,7 +97,7 @@ Druid::Query::Builder.new.js_aggregation(:aggregate, [:x, :y],
 A filtered aggregator wraps any given aggregator, but only aggregates the values for which the given dimension filter matches.
 
 ```ruby
-Druid::Query::Builder.new.filtered_aggregation(:aggregate1, :longSum) do
+Druid::Query::Builder.new.filtered_aggregation(:aggregate1, :aggregate_1_name, :longSum) do
   dimension1.neq 1 & dimension2.neq 2
 end
 ```
