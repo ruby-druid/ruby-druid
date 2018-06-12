@@ -463,13 +463,13 @@ module Druid
 
       ## filters
 
-      def filter(hash = nil, type = :in, &block)
+      def filter(hash = nil, type = :eq, &block)
         filter_from_hash(hash, type) if hash
         filter_from_block(&block) if block
         self
       end
 
-      def filter_from_hash(hash, type = :in)
+      def filter_from_hash(hash, type = :eq)
         last = nil
         hash.each do |k, values|
           filter = DimensionFilter.new(dimension: k).__send__(type, values)

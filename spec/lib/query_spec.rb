@@ -380,8 +380,8 @@ describe Druid::Query do
       it 'creates nin filter from hash' do
         @query.filter({ a: 1, b: 2 }, :nin)
         expect(JSON.parse(@query.query.to_json)['filter']).to eq({'fields' => [
-          {'type' => 'not', 'field' => { 'dimension' => 'a', 'type' => 'selector', 'value' => 1} },
-          {'type' => 'not', 'field' => { 'dimension' => 'b', 'type' => 'selector', 'value' => 2} }
+          {'type' => 'not', 'field' => { 'dimension' => 'a', 'type' => 'in', 'values' => [1]} },
+          {'type' => 'not', 'field' => { 'dimension' => 'b', 'type' => 'in', 'values' => [2]} }
         ],
         'type' => 'and'})
       end
@@ -389,22 +389,18 @@ describe Druid::Query do
 
     it 'creates an in statement with or filter' do
       @query.filter{a.in [1,2,3]}
-      expect(JSON.parse(@query.query.to_json)['filter']).to eq( {"fields" => [
-        {"type"=>"selector", "dimension"=>"a", "value"=>1},
-        {"type"=>"selector", "dimension"=>"a", "value"=>2},
-        {"type"=>"selector", "dimension"=>"a", "value"=>3}
-      ],
-      "type" => "or"})
+      expect(JSON.parse(@query.query.to_json)['filter']).to eq({
+        "type"=>"in",
+        "dimension"=>"a",
+        "values"=>[1,2,3]
+      })
     end
 
     it 'creates a nin statement with and filter' do
       @query.filter{a.nin [1,2,3]}
-      expect(JSON.parse(@query.query.to_json)['filter']).to eq( {"fields" => [
-        {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>1},"type" => "not"},
-        {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>2},"type" => "not"},
-        {"field"=>{"type"=>"selector", "dimension"=>"a", "value"=>3},"type" => "not"}
-      ],
-      "type" => "and"})
+      expect(JSON.parse(@query.query.to_json)['filter']).to eq( {"field" => 
+        {"type"=>"in", "dimension"=>"a", "values"=>[1,2,3]},
+      "type" => "not"})
     end
 
     it 'creates a javascript with > filter' do
@@ -446,16 +442,8 @@ describe Druid::Query do
     it 'can chain two in statements' do
       @query.filter{a.in([1,2,3]) & b.in([1,2,3])}
       expect(JSON.parse(@query.query.to_json)['filter']).to eq({"type"=>"and", "fields"=>[
-        {"type"=>"or", "fields"=>[
-          {"type"=>"selector", "dimension"=>"a", "value"=>1},
-          {"type"=>"selector", "dimension"=>"a", "value"=>2},
-          {"type"=>"selector", "dimension"=>"a", "value"=>3}
-        ]},
-        {"type"=>"or", "fields"=>[
-          {"type"=>"selector", "dimension"=>"b", "value"=>1},
-          {"type"=>"selector", "dimension"=>"b", "value"=>2},
-          {"type"=>"selector", "dimension"=>"b", "value"=>3}
-        ]}
+        {"type"=>"in", "dimension"=>"a", "values"=>[1,2,3]},
+        {"type"=>"in", "dimension"=>"b", "values"=>[1,2,3]},
       ]})
     end
   end
@@ -544,23 +532,24 @@ describe Druid::Query do
   end
 
   it 'should query regexp using .eq(regexp)' do
-    expect(JSON.parse(@query.filter{a.in(/abc.*/)}.query.to_json)['filter']).to eq({
+    expect(JSON.parse(@query.filter{a.eq(/abc.*/)}.query.to_json)['filter']).to eq({
       "dimension"=>"a",
       "type"=>"regex",
       "pattern"=>"abc.*"
     })
   end
 
-  it 'should query regexp using .in([regexp])' do
-    expect(JSON.parse(@query.filter{ a.in(['b', /[a-z].*/, 'c']) }.query.to_json)['filter']).to eq({
-      "type"=>"or",
-      "fields"=>[
-        {"dimension"=>"a", "type"=>"selector", "value"=>"b"},
-        {"dimension"=>"a", "type"=>"regex", "pattern"=>"[a-z].*"},
-        {"dimension"=>"a", "type"=>"selector", "value"=>"c"}
-      ]
-    })
-  end
+  # I'm not sure this is a realistic use-case.
+  # it 'should query regexp using .in([regexp])' do
+  #   expect(JSON.parse(@query.filter{ a.in(['b', /[a-z].*/, 'c']) }.query.to_json)['filter']).to eq({
+  #     "type"=>"or",
+  #     "fields"=>[
+  #       {"dimension"=>"a", "type"=>"selector", "value"=>"b"},
+  #       {"dimension"=>"a", "type"=>"regex", "pattern"=>"[a-z].*"},
+  #       {"dimension"=>"a", "type"=>"selector", "value"=>"c"}
+  #     ]
+  #   })
+  # end
 
   it 'takes type, limit and columns from limit method' do
     @query.limit(10, :a => 'ASCENDING', :b => 'DESCENDING')
