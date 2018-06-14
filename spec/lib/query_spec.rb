@@ -231,6 +231,32 @@ describe Druid::Query do
     end
   end
 
+  describe '#filtered_aggregation' do
+    it 'builds filtered aggregations' do
+      @query.filtered_aggregation(:a, :a_filtered, :longSum) do
+        b.eq(2) & c.neq(3)
+      end
+      expect(JSON.parse(@query.query.to_json)['aggregations']).to eq [
+        {
+          'type' => 'filtered',
+          'filter' => {
+            'type' => 'and',
+            'fields' => [
+              { 'dimension' => 'b', 'type' => 'selector', 'value' => 2 },
+              {
+                'type' => 'not',
+                'field' => {
+                  'dimension' => 'c', 'type' => 'selector', 'value' => 3
+                }
+              }
+            ]
+          },
+          'aggregator' => { 'type' => 'longSum', 'name' => 'a_filtered', 'fieldName' => 'a' }
+        }
+      ]
+    end
+  end
+
   describe '#first_last_aggregators' do
     %w[doubleFirst doubleLast longFirst longLast floatFirst floatLast].each do |type|
       it "builds aggregations with '#{type}' type" do
