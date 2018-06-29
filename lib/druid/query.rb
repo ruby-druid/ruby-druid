@@ -461,7 +461,7 @@ module Druid
             name: name,
             fieldName: metric
           )
-        ) unless @query.contains_aggregation?(metric)
+        ) unless @query.contains_aggregation?(name)
         self
       end
 
