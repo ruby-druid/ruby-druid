@@ -92,6 +92,16 @@ Druid::Query::Builder.new.js_aggregation(:aggregate, [:x, :y],
 )
 ```
 
+#### filtered aggregation
+
+A filtered aggregator wraps any given aggregator, but only aggregates the values for which the given dimension filter matches.
+
+```ruby
+Druid::Query::Builder.new.filtered_aggregation(:aggregate1, :aggregate_1_name, :longSum) do
+  dimension1.neq 1 & dimension2.neq 2
+end
+```
+
 ### Post Aggregations
 
 A simple syntax for post aggregations with +,-,/,* can be used like:
@@ -107,6 +117,36 @@ Javascript post aggregations are also supported:
 
 ```ruby
 query.postagg { js('function(aggregate1, aggregate2) { return aggregate1 + aggregate2; }').as result }
+```
+
+### thetaSketch
+
+A theta sketch object can be thought of as a Set data structure.
+
+```ruby
+query.theta_sketch('user_id_sketch', 'B_unique_users')
+```
+
+DataSketches aggregators are useful combined with filtered aggregations.
+
+```ruby
+query.filtered_aggregation(:user_id_sketch, :A_unique_users, :thetaSketch) do
+  product.eq('A')
+end
+
+query.filtered_aggregation(:user_id_sketch, :B_unique_users, :thetaSketch) do
+  product.eq('B')
+end
+```
+
+And then used by a post aggregations to calculate `INTERSECTION` or `UNION`.
+
+```ruby
+query.theta_sketch_postagg(
+  'final_unique_users',
+  'INTERSECT',
+  %w[A_unique_users B_unique_users]
+)
 ```
 
 ### Query Interval

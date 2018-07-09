@@ -3,13 +3,18 @@ module Druid
     include ActiveModel::Model
 
     attr_accessor :type
-    validates :type, inclusion: { in: %w(count longSum doubleSum min max javascript cardinality hyperUnique) }
+    validates :type, inclusion: { in: %w[count longSum doubleSum min max
+                                         javascript cardinality hyperUnique
+                                         doubleFirst doubleLast longFirst
+                                         longLast floatFirst floatLast
+                                         thetaSketch] }
 
     attr_accessor :name
     validates :name, presence: true
 
     class FieldnameValidator < ActiveModel::EachValidator
-      TYPES = %w(count longSum doubleSum min max hyperUnique)
+      TYPES = %w[count longSum doubleSum min max hyperUnique doubleFirst
+                 doubleLast longFirst longLast floatFirst floatLast].freeze
       def validate_each(record, attribute, value)
         if TYPES.include?(record.type)
           record.errors.add(attribute, 'may not be blank') if value.blank?
@@ -58,6 +63,34 @@ module Druid
 
     attr_accessor :byRow
     validates :byRow, allow_nil: true, inclusion: { in: [true, false] }
+
+    class FilterValidator < ActiveModel::EachValidator
+      TYPES = %w[filtered].freeze
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :filter
+    validates :filter, filter: true
+
+    class AggregatorValidator < ActiveModel::EachValidator
+      TYPES = %w[filtered].freeze
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :aggregator
+    validates :aggregator, aggregator: true
 
     def as_json(options = {})
       super(options.merge(except: %w(errors validation_context)))

@@ -393,7 +393,8 @@ module Druid
       end
 
       ### aggregations
-      [:count, :long_sum, :double_sum, :min, :max, :hyper_unique].each do |method_name|
+      %i[count long_sum double_sum min max hyper_unique double_first double_last
+         float_first float_last long_first long_last].each do |method_name|
         define_method method_name do |*metrics|
           metrics.flatten.compact.each do |metric|
             @query.aggregations << Aggregation.new({
@@ -448,6 +449,33 @@ module Druid
           fnCombine: functions[:combine],
           fnReset: functions[:reset],
         }) unless @query.contains_aggregation?(metric)
+        self
+      end
+
+      def theta_sketch(metric, name)
+        @query.aggregations << Aggregation.new(
+          type: 'thetaSketch',
+          name: name,
+          fieldName: metric
+        ) unless @query.contains_aggregation?(name)
+        self
+      end
+
+      def theta_sketch_postagg(name, func, fields = [])
+        @query.postAggregations <<
+          ::Druid::PostAggregationThetaSketch.new(name: name, func: func, fields: fields)
+      end
+
+      def filtered_aggregation(metric, name, aggregation_type, &filter)
+        @query.aggregations << Aggregation.new(
+          type: 'filtered',
+          filter: Filter.new.instance_exec(&filter),
+          aggregator: Aggregation.new(
+            type: aggregation_type.to_s.camelize(:lower),
+            name: name,
+            fieldName: metric
+          )
+        ) unless @query.contains_aggregation?(name)
         self
       end
 
