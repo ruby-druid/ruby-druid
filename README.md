@@ -119,6 +119,36 @@ Javascript post aggregations are also supported:
 query.postagg { js('function(aggregate1, aggregate2) { return aggregate1 + aggregate2; }').as result }
 ```
 
+### thetaSketch
+
+A theta sketch object can be thought of as a Set data structure.
+
+```ruby
+query.theta_sketch('user_id_sketch', 'B_unique_users')
+```
+
+DataSketches aggregators are useful combined with filtered aggregations.
+
+```ruby
+query.filtered_aggregation(:user_id_sketch, :A_unique_users, :thetaSketch) do
+  product.eq('A')
+end
+
+query.filtered_aggregation(:user_id_sketch, :B_unique_users, :thetaSketch) do
+  product.eq('B')
+end
+```
+
+And then used by a post aggregations to calculate `INTERSECTION` or `UNION`.
+
+```ruby
+query.theta_sketch_postagg(
+  'final_unique_users',
+  'INTERSECT',
+  %w[A_unique_users B_unique_users]
+)
+```
+
 ### Query Interval
 
 The interval for the query takes a string with date and time or objects that provide an `iso8601` method.

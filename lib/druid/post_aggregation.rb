@@ -5,7 +5,9 @@ module Druid
     attr_accessor :numBuckets
 
     attr_accessor :type
-    validates :type, inclusion: { in: %w(arithmetic fieldAccess constant javascript hyperUniqueCardinality) }
+    validates :type, inclusion: { in: %w[arithmetic fieldAccess constant
+                                         javascript hyperUniqueCardinality
+                                         thetaSketchEstimate] }
 
     class NameValidator < ActiveModel::EachValidator
       TYPES = %w(arithmetic constant javascript)
@@ -268,4 +270,37 @@ module Druid
     end
   end
 
+  class PostAggregationThetaSketch < PostAggregation
+    attr_accessor :field
+
+    class FuncValidator < ActiveModel::EachValidator
+      TYPES = %w(UNION INTERSECTION NOT)
+      def validate_each(record, attribute, value)
+        if TYPES.include?(record.type)
+          record.errors.add(attribute, 'may not be blank') if value.blank?
+        else
+          record.errors.add(attribute, "is not supported by type=#{record.type}") if value
+        end
+      end
+    end
+
+    attr_accessor :func
+    validates :func, func: true
+
+    def initialize(attributes = {})
+      @type = 'thetaSketchEstimate'
+      @name = attributes[:name]
+      @field = {
+        type: 'thetaSketchSetOp',
+        name: "#{name}_sketch",
+        func: attributes[:func],
+        fields: attributes[:fields].map do |aggregation|
+          PostAggregation.new(
+            fieldName: aggregation,
+            type: 'fieldAccess'
+          )
+        end
+      }
+    end
+  end
 end

@@ -452,6 +452,20 @@ module Druid
         self
       end
 
+      def theta_sketch(metric, name)
+        @query.aggregations << Aggregation.new(
+          type: 'thetaSketch',
+          name: name,
+          fieldName: metric
+        ) unless @query.contains_aggregation?(name)
+        self
+      end
+
+      def theta_sketch_postagg(name, func, fields = [])
+        @query.postAggregations <<
+          ::Druid::PostAggregationThetaSketch.new(name: name, func: func, fields: fields)
+      end
+
       def filtered_aggregation(metric, name, aggregation_type, &filter)
         @query.aggregations << Aggregation.new(
           type: 'filtered',

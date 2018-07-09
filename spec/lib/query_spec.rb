@@ -204,6 +204,78 @@ describe Druid::Query do
     end
   end
 
+  describe '#theta_sketch' do
+    it 'builds aggregation with "theta_sketch"' do
+      @query.theta_sketch('user_id_sketch', 'B_unique_users')
+      expect(JSON.parse(@query.query.to_json)['aggregations']).to eq [
+        { 'type' => 'thetaSketch', 'name' => 'B_unique_users', 'fieldName' => 'user_id_sketch' }
+      ]
+    end
+
+    it 'build a thetaSketch post aggregation with filtered aggregations' do
+      @query.filtered_aggregation(:user_id_sketch, :A_unique_users, :thetaSketch) do
+        product.eq('A')
+      end
+      @query.filtered_aggregation(:user_id_sketch, :B_unique_users, :thetaSketch) do
+        product.eq('B')
+      end
+      @query.theta_sketch_postagg(
+        'final_unique_users',
+        'INTERSECT',
+        %w[A_unique_users B_unique_users]
+      )
+
+      expect(JSON.parse(@query.query.to_json)['aggregations']).to eq [
+        {
+          'type' => 'filtered',
+          'filter' => {
+            'type' => 'selector',
+            'dimension' => 'product',
+            'value' => 'A'
+          },
+          'aggregator' => {
+            'type' => 'thetaSketch', 'name' => 'A_unique_users',
+            'fieldName' => 'user_id_sketch'
+          }
+        },
+        {
+          'type' => 'filtered',
+          'filter' => {
+            'type' => 'selector',
+            'dimension' => 'product',
+            'value' => 'B'
+          },
+          'aggregator' => {
+            'type' => 'thetaSketch', 'name' => 'B_unique_users',
+            'fieldName' => 'user_id_sketch'
+          }
+        }
+      ]
+
+      expect(JSON.parse(@query.query.to_json)['postAggregations']).to eq [
+        {
+          'type' => 'thetaSketchEstimate',
+          'name' => 'final_unique_users',
+          'field' => {
+            'type' => 'thetaSketchSetOp',
+            'name' => 'final_unique_users_sketch',
+            'func' => 'INTERSECT',
+            'fields' => [
+              {
+                'type' => 'fieldAccess',
+                'fieldName' => 'A_unique_users'
+              },
+              {
+                'type' => 'fieldAccess',
+                'fieldName' => 'B_unique_users'
+              }
+            ]
+          }
+        }
+      ]
+    end
+  end
+
   describe '#cardinality' do
     it 'builds aggregation with "cardinality" type' do
       @query.cardinality(:a, [:dim1, :dim2], true)

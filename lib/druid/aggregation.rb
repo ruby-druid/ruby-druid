@@ -6,7 +6,8 @@ module Druid
     validates :type, inclusion: { in: %w[count longSum doubleSum min max
                                          javascript cardinality hyperUnique
                                          doubleFirst doubleLast longFirst
-                                         longLast floatFirst floatLast] }
+                                         longLast floatFirst floatLast
+                                         thetaSketch] }
 
     attr_accessor :name
     validates :name, presence: true
