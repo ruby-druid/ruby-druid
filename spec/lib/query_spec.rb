@@ -209,6 +209,18 @@ describe Druid::Query do
     end
   end
 
+  describe '#first_last_aggregators' do
+    %w[doubleFirst doubleLast longFirst longLast floatFirst floatLast].each do |type|
+      it "builds aggregations with '#{type}' type" do
+        @query.send(type.underscore, :a, :b)
+        expect(JSON.parse(@query.query.to_json)['aggregations']).to eq [
+          { 'type' => type, 'name' => 'a', 'fieldName' => 'a'},
+          { 'type' => type, 'name' => 'b', 'fieldName' => 'b'}
+        ]
+      end
+    end
+  end
+
   it 'appends long_sum properties from aggregations on calling long_sum again' do
     @query.long_sum(:a, :b, :c)
     @query.double_sum(:x,:y)
