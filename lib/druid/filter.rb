@@ -328,14 +328,14 @@ module Druid
   class SearchFilter < Filter
     include BooleanOperators
 
-    def initialize(dimension, value)
+    def initialize(dimension, params)
       super()
       @type = 'search'
       @dimension = dimension
       @query = {
         type: 'contains',
-        value: value,
-        caseSensitive: true
+        value: params[:value],
+        caseSensitive: params[:case_sensitive] || false
       }
     end
   end
