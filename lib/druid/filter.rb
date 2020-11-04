@@ -166,6 +166,14 @@ module Druid
       CircFilter.new(@dimension, bounds)
     end
 
+    def bound(params)
+      BoundFilter.new(@dimension, params)
+    end
+
+    def search(params)
+      SearchFilter.new(@dimension, params)
+    end
+
     def eq(value)
       case value
       when ::Array
@@ -299,7 +307,35 @@ module Druid
       @bound = {
         type: 'radius',
         coords: bounds.first,
-        radius: bounds.last,
+        radius: bounds.last
+      }
+    end
+  end
+
+  class BoundFilter < Filter
+    include BooleanOperators
+
+    def initialize(dimension, params)
+      super()
+      @type = 'bound'
+      @dimension = dimension
+      @ordering = params[:ordering]
+      @upper = params[:upper]
+      @upperStrict = params[:upperStrict]
+    end
+  end
+
+  class SearchFilter < Filter
+    include BooleanOperators
+
+    def initialize(dimension, params)
+      super()
+      @type = 'search'
+      @dimension = dimension
+      @query = {
+        type: 'contains',
+        value: params[:value],
+        caseSensitive: params[:case_sensitive] || false
       }
     end
   end
