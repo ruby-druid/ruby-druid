@@ -206,7 +206,7 @@ module Druid
     private
 
     def extract_fields(function)
-      match = function.match(/function\((.+)\)/)
+      match = function.match(/function\((.+?)\)/)
       raise 'Invalid Javascript function' unless match && match.captures
       match.captures.first.split(',').map(&:strip)
     end
