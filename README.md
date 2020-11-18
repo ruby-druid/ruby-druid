@@ -276,6 +276,13 @@ Druid::Query::Builder.new.filter{dimension => 1, dimension1 =>2, dimension2 => 3
 Druid::Query::Builder.new.filter{dimension.eq(1) & dimension1.eq(2) & dimension2.eq(3)}
 ```
 
+## Instrumentation
+
+Provides a single event `post.druid`. Payload:
+
+ - `data_source`
+ - `query`
+
 ## Contributing
 
 1. Fork it

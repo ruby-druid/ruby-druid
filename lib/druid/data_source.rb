@@ -59,12 +59,16 @@ module Druid
       query.dataSource = name
 
       req = Net::HTTP::Post.new(uri.path, { 'Content-Type' => 'application/json' })
-      req.body = query.to_json
+      query_as_json = query.as_json
+      req.body = MultiJson.dump(query_as_json)
 
-      response = Net::HTTP.new(uri.host, uri.port).start do |http|
-        http.open_timeout = 10 # if druid is down fail fast
-        http.read_timeout = nil # we wait until druid is finished
-        http.request(req)
+
+      response = ActiveSupport::Notifications.instrument('post.druid', data_source: name, query: query_as_json) do
+        Net::HTTP.new(uri.host, uri.port).start do |http|
+          http.open_timeout = 10 # if druid is down fail fast
+          http.read_timeout = nil # we wait until druid is finished
+          http.request(req)
+        end
       end
 
       if response.code != '200'
