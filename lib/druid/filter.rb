@@ -196,11 +196,16 @@ module Druid
     alias :'!=' :neq
 
     def in(*args)
-      filter_multiple(args.flatten, 'or', :eq)
+      # filter_multiple(args.flatten, 'or', :eq)
+      @type = 'in'
+      @values = args.flatten
+      ::Kernel.raise 'Values cannot be empty' if @values.empty?
+      self
     end
 
     def nin(*args)
-      filter_multiple(args.flatten, 'and', :neq)
+      # filter_multiple(args.flatten, 'and', :neq)
+      return !self.in(args.flatten)
     end
 
     def filter_multiple(values, operator, method)
