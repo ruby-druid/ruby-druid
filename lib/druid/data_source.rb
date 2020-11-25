@@ -6,7 +6,7 @@ module Druid
 
     attr_reader :name, :uri, :metrics, :dimensions
 
-    def initialize(name, uri)
+    def initialize(name, uri, http_params: {})
       @name = name.split('/').last
       uri = uri.sample if uri.is_a?(Array)
       if uri.is_a?(String)
@@ -14,6 +14,7 @@ module Druid
       else
         @uri = uri
       end
+      @http_params = http_params
     end
 
     def metadata
@@ -35,6 +36,11 @@ module Druid
       response = Net::HTTP.new(uri.host, uri.port).start do |http|
         http.open_timeout = 10 # if druid is down fail fast
         http.read_timeout = nil # we wait until druid is finished
+        if @http_params
+          for param, value in @http_params
+            http.send("#{param}=", value)
+          end
+        end
         http.request(req)
       end
 
@@ -67,6 +73,11 @@ module Druid
         Net::HTTP.new(uri.host, uri.port).start do |http|
           http.open_timeout = 10 # if druid is down fail fast
           http.read_timeout = nil # we wait until druid is finished
+          if @http_params
+            for param, value in @http_params
+              http.send("#{param}=", value)
+            end
+          end
           http.request(req)
         end
       end
