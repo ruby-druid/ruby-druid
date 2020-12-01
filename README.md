@@ -47,7 +47,7 @@ data_source = Druid::DataSource.new('service/source', 'http://localhost:8080/dru
 
 ### GroupBy
 
-A [GroupByQuery](http://druid.io/docs/latest/querying/groupbyquery.html) sets the
+A [GroupByQuery](https://druid.apache.org/docs/latest/querying/groupbyquery.html) sets the
 dimensions to group the data.
 
 `queryType` is set automatically to `groupBy`.
@@ -58,7 +58,7 @@ Druid::Query::Builder.new.group_by([:dimension1, :dimension2])
 
 ### TimeSeries
 
-A [TimeSeriesQuery](http://druid.io/docs/latest/querying/timeseriesquery.html) returns an array of JSON objects where each object represents a value asked for by the timeseries query.
+A [TimeSeriesQuery](https://druid.apache.org/docs/latest/querying/timeseriesquery.html) returns an array of JSON objects where each object represents a value asked for by the timeseries query.
 
 ```ruby
 Druid::Query::Builder.new.time_series([:aggregate1, :aggregate2])
@@ -72,7 +72,7 @@ Druid::Query::Builder.new.time_series([:aggregate1, :aggregate2])
 Druid::Query::Builder.new.long_sum([:aggregate1, :aggregate2])
 ```
 
-In the same way could be used the following methods for [aggregations](http://druid.io/docs/latest/querying/aggregations.html) adding: `double_sum, count, min, max, hyper_unique`
+In the same way could be used the following methods for [aggregations](https://druid.apache.org/docs/latest/querying/aggregations.html) adding: `double_sum, count, min, max, hyper_unique`
 
 #### cardinality
 
@@ -132,7 +132,7 @@ query.interval("2013-01-01T00", Time.now)
 
 The granularity can be `:all`, `:none`, `:minute`, `:fifteen_minute`, `:thirthy_minute`, `:hour` or `:day`.
 
-It can also be a period granularity as described in the [Druid documentation](http://druid.io/docs/latest/querying/granularities.html).
+It can also be a period granularity as described in the [Druid documentation](https://druid.apache.org/docs/latest/querying/granularities.html).
 
 The period `'day'` or `:day` will be interpreted as `'P1D'`.
 
