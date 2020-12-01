@@ -1,6 +1,6 @@
 # ruby-druid
 
-A Ruby client for [Druid](http://druid.io). Includes a [Squeel](https://github.com/ernie/squeel)-like query DSL and generates a JSON query that can be sent to Druid directly.
+A Ruby client for [Apache Druid](https://druid.apache.org). Includes a [Squeel](https://github.com/ernie/squeel)-like query DSL and generates a JSON query that can be sent to Druid directly.
 
 [![Gem Version](https://badge.fury.io/rb/ruby-druid.png)](http://badge.fury.io/rb/ruby-druid)
 [![Build Status](https://travis-ci.org/ruby-druid/ruby-druid.png)](https://travis-ci.org/ruby-druid/ruby-druid)
