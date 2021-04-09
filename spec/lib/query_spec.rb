@@ -152,22 +152,22 @@ describe Druid::Query do
     ])
   end
 
-  describe '#min' do
-    it 'builds aggregations with "min" type' do
-      @query.min(:a, :b)
+  describe '#doubleMin' do
+    it 'builds aggregations with "doubleMin" type' do
+      @query.double_min(:a, :b)
       expect(JSON.parse(@query.query.to_json)['aggregations']).to eq [
-        { 'type' => 'min', 'name' => 'a', 'fieldName' => 'a'},
-        { 'type' => 'min', 'name' => 'b', 'fieldName' => 'b'}
+        { 'type' => 'doubleMin', 'name' => 'a', 'fieldName' => 'a'},
+        { 'type' => 'doubleMin', 'name' => 'b', 'fieldName' => 'b'}
       ]
     end
   end
 
-  describe '#max' do
-    it 'builds aggregations with "max" type' do
-      @query.max(:a, :b)
+  describe '#doubleMax' do
+    it 'builds aggregations with "doubleMax" type' do
+      @query.double_max(:a, :b)
       expect(JSON.parse(@query.query.to_json)['aggregations']).to eq [
-        { 'type' => 'max', 'name' => 'a', 'fieldName' => 'a'},
-        { 'type' => 'max', 'name' => 'b', 'fieldName' => 'b'}
+        { 'type' => 'doubleMax', 'name' => 'a', 'fieldName' => 'a'},
+        { 'type' => 'doubleMax', 'name' => 'b', 'fieldName' => 'b'}
       ]
     end
   end
